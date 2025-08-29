@@ -5,13 +5,13 @@
 from .batch import batch
 from .branch import Branch
 from .map import map_values
-from .reduce import reduce_values
+from .reduce import reduce
 from .split import split
 
 __all__ = [
     "batch",
-    "Branch",
+    "branch",
     "map_values",
-    "reduce_values",
+    "reduce",
     "split",
 ]

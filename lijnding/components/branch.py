@@ -3,23 +3,34 @@ from __future__ import annotations
 from itertools import zip_longest
 from typing import TYPE_CHECKING, Any, Iterable, List, Union
 
-from ..core.pipeline import Pipeline
+from typing import TYPE_CHECKING, Any, Iterable, List, Union
+
 from ..core.stage import Stage, stage
 
 if TYPE_CHECKING:
     from ..core.context import Context
+    from ..core.pipeline import Pipeline
+
+
+def branch(*branches: Union[Stage, "Pipeline", "Branch"], merge: str = "concat") -> "Branch":
+    """
+    A factory function for creating a Branch component.
+    This is the recommended, user-facing way to create a branch.
+    """
+    return Branch(*branches, merge=merge)
 
 
 class Branch:
     """
     A component for creating parallel execution paths in a pipeline.
-
-    Branch takes multiple sub-pipelines (branches) and runs them all on the
-    same input item. It then merges the results from these branches back into
-    a single stream according to a specified merge strategy.
+    It is recommended to use the lowercase `branch()` factory function instead
+    of constructing this class directly.
     """
 
-    def __init__(self, *branches: Union[Stage, Pipeline], merge: str = "concat"):
+    def __init__(self, *branches: Union[Stage, "Pipeline"], merge: str = "concat"):
+        # Local import to prevent circular dependency
+        from ..core.pipeline import Pipeline
+
         if not branches:
             raise ValueError("Branch must have at least one branch.")
 
@@ -39,29 +50,22 @@ class Branch:
     def to_stage(self) -> Stage:
         """
         Converts the Branch configuration into an executable Stage.
-        The returned stage is itemwise, but its internal logic manages
-        the parallel execution and merging of its branches.
         """
-
         @stage(name=f"Branch(merge='{self.merge}')", stage_type="itemwise")
         def _branch_func(context: "Context", item: Any) -> Iterable[Any]:
-            # Create an iterator for each branch for the current item
             branch_iterators = [
                 branch.run([item], collect=False)[0] for branch in self.branches
             ]
 
-            # --- Merging Logic ---
             if self.merge == "concat":
                 for it in branch_iterators:
                     yield from it
 
             elif self.merge == "zip":
-                # Use zip for lazy, parallel iteration
                 for zipped_items in zip(*branch_iterators):
                     yield zipped_items
 
             elif self.merge == "zip_longest":
-                # Use zip_longest to continue until all branches are exhausted
                 for zipped_items in zip_longest(*branch_iterators, fillvalue=None):
                     yield zipped_items
 

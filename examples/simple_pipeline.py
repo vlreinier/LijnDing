@@ -1,7 +1,8 @@
 """
 A simple example demonstrating the basic usage of the LijnDing framework.
+This example shows the most direct way to compose a pipeline.
 """
-from lijnding import Pipeline, stage
+from lijnding import stage, Pipeline # Pipeline is only needed for type hinting here
 
 # 1. Define pipeline stages using the @stage decorator
 @stage
@@ -31,8 +32,9 @@ def main():
         "Here is another block of text. It has two more sentences.",
     ]
 
-    # 3. Construct the pipeline by chaining stages together
-    pipeline = Pipeline() | split_sentences | count_words | to_dict
+    # 3. Construct the pipeline by chaining stages together directly.
+    #    You don't need to create an empty Pipeline() first.
+    pipeline: Pipeline = split_sentences | count_words | to_dict
 
     # 4. Run the pipeline and collect the results
     results, context = pipeline.collect(data)

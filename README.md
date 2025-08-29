@@ -2,77 +2,68 @@
 
 LijnDing is a lightweight, type-aware, and composable pipeline framework for Python. It allows you to build complex data processing workflows by chaining together simple, reusable stages.
 
+## Core Concepts
+
+- **Stage**: The fundamental building block of a pipeline. A stage is a simple Python function decorated with `@stage`. It performs a single, specific operation on data flowing through the pipeline.
+- **Pipeline**: A sequence of stages connected by the `|` (pipe) operator. Data flows from one stage to the next. A `Pipeline` can also be treated as a single `Stage`, allowing you to nest pipelines.
+- **Component**: A pre-built, configurable stage, usually created by a factory function (e.g., `branch()`, `batch()`). Components handle common tasks like branching, batching, and reducing.
+- **Backend**: The execution engine for a stage. LijnDing supports different backends (`serial`, `thread`) for different needs. This is configured via the `@stage` decorator (e.g., `@stage(backend="thread")`).
+
 ## Key Features
 
 - **Simple & Composable API**: Use the `@stage` decorator and the `|` operator to build elegant, readable pipelines.
-- **Multiple Backends**: Run your pipelines serially, in a thread pool for I/O-bound tasks, or (in a future release) across multiple processes for CPU-bound tasks.
+- **Multiple Backends**: Run your pipelines serially or in a thread pool for I/O-bound tasks.
 - **Error Handling**: Configure how your pipeline behaves on errors with policies like `fail`, `skip`, or `retry`.
-- **Branching & Merging**: Create complex DAG-style workflows with parallel branches that can be merged back together.
-- **Automatic Context Injection**: Share state and metrics across your pipeline with a `Context` object that is automatically injected into stages that need it.
+- **Branching & Merging**: Create complex DAG-style workflows with the `branch()` component.
+- **Nestable Pipelines**: Encapsulate and reuse complex workflows by using a pipeline as a stage within another pipeline.
 
 ## Basic Usage
 
-Here's a simple example of building a pipeline to process text:
+Building a pipeline is as simple as defining stages and connecting them with `|`.
 
 ```python
-# examples/simple_pipeline.py
-from lijnding import Pipeline, stage
+from lijnding import stage
 
-# 1. Define pipeline stages using the @stage decorator
+# 1. Define stages
 @stage
-def split_sentences(text: str):
-    """Takes a block of text and yields individual sentences."""
-    for sentence in text.split('.'):
-        cleaned_sentence = sentence.strip()
-        if cleaned_sentence:
-            yield cleaned_sentence
+def to_upper(text: str):
+    return text.upper()
 
 @stage
-def count_words(sentence: str):
-    """Takes a sentence and returns a tuple of (word_count, sentence)."""
-    word_count = len(sentence.split())
-    return (word_count, sentence)
+def exclaim(text: str):
+    return f"{text}!"
 
-@stage
-def to_dict(data: tuple):
-    """Takes a tuple and converts it to a dictionary."""
-    return {"word_count": data[0], "sentence": data[1]}
+# 2. Compose stages into a pipeline
+#    You don't need to create a Pipeline() object first.
+shouting_pipeline = to_upper | exclaim
 
-def main():
-    """Builds and runs the pipeline."""
-    # 2. Define the input data
-    data = [
-        "This is the first sentence. This is the second.",
-        "Here is another block of text. It has two more sentences.",
-    ]
+# 3. Run the pipeline and collect the results
+results, _ = shouting_pipeline.collect(["hello", "world"])
 
-    # 3. Construct the pipeline by chaining stages together
-    pipeline = Pipeline() | split_sentences | count_words | to_dict
-
-    # 4. Run the pipeline and collect the results
-    results, context = pipeline.collect(data)
-
-    # 5. Print the results
-    print("--- Pipeline Results ---")
-    for res in results:
-        print(res)
-
-    print("\n--- Final Context ---")
-    print(context.to_dict())
-
-if __name__ == "__main__":
-    main()
+#
+# results will be: ['HELLO!', 'WORLD!']
+#
 ```
 
-Which produces the output:
+## Advanced Usage: Branching
 
-```
---- Pipeline Results ---
-{'word_count': 5, 'sentence': 'This is the first sentence'}
-{'word_count': 4, 'sentence': 'This is the second'}
-{'word_count': 6, 'sentence': 'Here is another block of text'}
-{'word_count': 5, 'sentence': 'It has two more sentences'}
+Use the `branch()` component to run multiple operations on the same data.
 
---- Final Context ---
-{}
+```python
+from lijnding import stage, branch
+
+@stage
+def get_length(text: str):
+    return len(text)
+
+# This pipeline will create tuples containing the uppercase version
+# and the length for each input word.
+# The `branch` component is seamlessly integrated with the `|` operator.
+analysis_pipeline = branch(to_upper, get_length, merge="zip")
+
+results, _ = analysis_pipeline.collect(["hello", "lijnding"])
+
+#
+# results will be: [('HELLO', 5), ('LIJNDING', 8)]
+#
 ```

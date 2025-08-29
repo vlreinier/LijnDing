@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from functools import reduce
 from typing import Any, Callable, Iterable, Optional
+import functools
 
 from ..core.stage import Stage, stage
 
 
-def reduce_values(func: Callable[[Any, Any], Any], initializer: Optional[Any] = None) -> Stage:
+def reduce(func: Callable[[Any, Any], Any], initializer: Optional[Any] = None) -> Stage:
     """
     Creates a stage that reduces an entire input stream to a single value.
 
@@ -39,7 +39,7 @@ def reduce_values(func: Callable[[Any, Any], Any], initializer: Optional[Any] = 
             initial_value = initializer
 
         # Perform the reduction
-        result = reduce(func, iterator, initial_value)
+        result = functools.reduce(func, iterator, initial_value)
         yield result
 
     return _reduce_func
