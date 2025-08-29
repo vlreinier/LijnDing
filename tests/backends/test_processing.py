@@ -1,38 +1,38 @@
 import pytest
 from lijnding import Pipeline, stage, Context
 
-# --- Test Functions for Processing ---
-# Must be registered to be found by the worker processes.
+# --- Processing Backend Tests ---
 
-@stage(register_for_processing=True)
-def _process_worker_func(x):
-    return x * 2
+def test_processing_backend_simple():
+    """Tests a simple function with the process backend."""
+    # This top-level function is picklable by default
+    @stage(backend="process")
+    def double(x):
+        return x * 2
 
-@stage(register_for_processing=True)
-def _process_context_func(context: Context, x):
-    context.inc("proc_counter")
-    return x
+    pipeline = Pipeline([double])
+    results, _ = pipeline.collect([1, 10, 100])
+    assert sorted(results) == [2, 20, 200]
 
-def _unregistered_func(x):
-    return "should not run"
+def test_processing_backend_lambda():
+    """Tests that a lambda function works with the process backend (requires dill)."""
+    double_lambda = stage(lambda x: x * 2, backend="process")
 
-def test_processing_backend_execution():
-    pipeline = Pipeline([_process_worker_func])
-    results, _ = pipeline.collect([1, 2, 3, 4])
-    assert sorted(results) == [2, 4, 6, 8]
+    pipeline = Pipeline([double_lambda])
+    results, _ = pipeline.collect([5, 6, 7])
+    assert sorted(results) == [10, 12, 14]
 
-def test_processing_backend_context():
-    pipeline = Pipeline([_process_context_func])
-    _, context = pipeline.collect([1, 2, 3, 4])
-    assert context.get("proc_counter") == 4
+def test_processing_backend_with_context():
+    """Tests that the shared context works with the process backend."""
+    @stage(backend="process")
+    def context_user(context: Context, item: int):
+        context.inc("my_counter")
+        return item + context.get("my_counter")
 
-def test_unregistered_stage_fails():
-    """
-    Tests that the pre-flight check correctly raises a TypeError
-    for a stage that was not registered.
-    """
-    unregistered_stage = stage(backend="process")(_unregistered_func)
-    pipeline = Pipeline([unregistered_stage])
+    pipeline = Pipeline([context_user])
+    # The context is created by the pipeline and should be mp-safe
+    results, context = pipeline.collect([10, 20, 30])
 
-    with pytest.raises(TypeError, match="is not registered for multiprocessing"):
-        pipeline.collect([1, 2, 3])
+    assert context.get("my_counter") == 3
+    # The results will be 10+1, 20+2, 30+3
+    assert sorted(results) == [11, 22, 33]

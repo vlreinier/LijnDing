@@ -7,7 +7,6 @@ def register_function(func: Callable, name: str = None):
     """Registers a function for use in the ProcessingRunner."""
     key = name or f"{func.__module__}.{func.__name__}"
     if key in _function_registry:
-        # This can happen if the module is reloaded, it's generally safe to ignore.
         pass
     _function_registry[key] = func
 
