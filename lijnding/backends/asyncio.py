@@ -75,6 +75,11 @@ class AsyncioRunner(BaseRunner):
         Provides a synchronous entry point for the async runner by running
         a new event loop. This is useful for running an async-powered pipeline
         from a sync context, but it's not the primary use case.
+
+        .. warning::
+            This method is NOT lazy and will block until the entire async
+            iterator is consumed. It also cannot be called from a running
+            event loop. Use `run_async` for true async behavior.
         """
         # We need an async generator to pass to `asyncio.run`.
         async def _async_gen_wrapper():

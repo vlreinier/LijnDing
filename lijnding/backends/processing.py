@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import multiprocessing as mp
+import warnings
 from typing import TYPE_CHECKING, Any, Iterable, Iterator
 import dill as serializer
 
@@ -43,10 +44,23 @@ def _worker_process(q_in: mp.Queue, q_out: mp.Queue):
 class ProcessingRunner(BaseRunner):
     """
     A runner that executes itemwise stages in separate processes.
-    NOTE: This implementation is simple and robust, but not highly performant,
-    as it spawns a new process for each item in the iterable.
+
+    This runner is designed for stability and compatibility, especially in
+    test environments. It achieves this by spawning a new process for each
+    individual item in the input stream.
+
+    .. warning::
+        This implementation is NOT performant for large datasets due to the
+        overhead of process creation for every item. It is intended for use
+        in scenarios where process isolation is critical and performance is
+        not the primary concern.
     """
     def _run_itemwise(self, stage: "Stage", context: "Context", iterable: Iterable[Any]) -> Iterator[Any]:
+        warnings.warn(
+            "The 'process' backend is not performant for large datasets as it "
+            "spawns a new process for each item.",
+            UserWarning
+        )
         try:
             mp.set_start_method('spawn', force=True)
         except RuntimeError:
