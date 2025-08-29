@@ -60,7 +60,8 @@ class AsyncioRunner(BaseRunner):
                     # Run sync functions in a thread to avoid blocking the event loop
                     results = await asyncio.to_thread(stage._invoke, context, item)
 
-                output_stream = stage._ensure_iterable(results)
+                from ..core.utils import ensure_iterable
+                output_stream = ensure_iterable(results)
                 for res in output_stream:
                     yield res
 
@@ -100,6 +101,10 @@ class AsyncioRunner(BaseRunner):
         # This implementation is NOT lazy. A truly lazy bridge is more complex.
         results = asyncio.run(_collect_async_gen(_async_gen_wrapper()))
         yield from results
+
+    def _run_itemwise(self, stage: "Stage", context: "Context", iterable: Iterable[Any]) -> Iterator[Any]:
+        """Implementation for the abstract method, uses the sync bridge."""
+        yield from self.run(stage, context, iterable)
 
 
 async def _collect_async_gen(agen):

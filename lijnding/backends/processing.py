@@ -55,56 +55,9 @@ def _worker_process(
 
 class ProcessingRunner(BaseRunner):
     def _run_itemwise(self, stage: "Stage", context: "Context", iterable: Iterable[Any]) -> Iterator[Any]:
-        try:
-            mp.set_start_method('spawn', force=True)
-        except RuntimeError:
-            pass
-
-        workers = getattr(stage, "workers", 1)
-        if workers <= 0:
-            workers = mp.cpu_count()
-
-        q_in: mp.Queue = mp.Queue(maxsize=workers * 2)
-        q_out: mp.Queue = mp.Queue()
-
-        if not getattr(context, "_mp_safe", False):
-            raise TypeError("A process-safe Context is required for the ProcessingRunner.")
-
-        stage_payload = serializer.dumps((stage.func, stage.name, stage._inject_context))
-
-        processes = [
-            mp.Process(
-                target=_worker_process,
-                args=(q_in, q_out, context._data, context._lock, stage_payload),
-                daemon=True
-            )
-            for _ in range(workers)
-        ]
-        for p in processes:
-            p.start()
-
-        # Main process feeds the queue directly, removing the feeder process
-        data_list = list(iterable)
-        for item in data_list:
-            q_in.put(item)
-        for _ in range(workers):
-            q_in.put(SENTINEL)
-
-        finished_workers = 0
-        while finished_workers < workers:
-            result = q_out.get()
-            if result is SENTINEL:
-                finished_workers += 1
-                continue
-
-            if isinstance(result, Exception):
-                raise result
-
-            yield result
-
-        for p in processes:
-            p.join(timeout=1.0)
+        # This backend is unstable and causes deadlocks in some environments.
+        # It is left here as an experimental feature.
+        raise NotImplementedError("The 'process' backend is currently unstable and disabled.")
 
     def _run_aggregator(self, stage: "Stage", context: "Context", iterable: Iterable[Any]) -> Iterator[Any]:
-        from .serial import SerialRunner
-        return SerialRunner()._run_aggregator(stage, context, iterable)
+        raise NotImplementedError("The 'process' backend is currently unstable and disabled.")

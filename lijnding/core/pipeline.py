@@ -70,6 +70,39 @@ class Pipeline:
         # The type hint says stream can be an iterable, but collect=True ensures it's a list
         return stream, context # type: ignore
 
+    async def run_async(
+        self, data: Union[Iterable[Any], AsyncIterable[Any]]
+    ) -> Tuple[AsyncIterator[Any], Context]:
+        """
+        Asynchronously executes the pipeline.
+        This method is required for pipelines that use the 'async' backend.
+        """
+        context = self._build_context()
+
+        # Ensure the input is an async iterable
+        async def _to_async(it):
+            for i in it:
+                yield i
+
+        stream: AsyncIterable[Any]
+        if not hasattr(data, "__aiter__"):
+            stream = _to_async(data)
+        else:
+            stream = data # type: ignore
+
+        for stage in self.stages:
+            runner = get_runner(getattr(stage, "backend", "serial"))
+            if hasattr(runner, 'run_async'):
+                stream = runner.run_async(stage, context, stream)
+            else:
+                # This is a synchronous bridge for running a sync stage in an async pipeline
+                # It's not perfectly non-blocking but is a pragmatic solution.
+                # A more advanced implementation would run this in a thread pool.
+                sync_results = runner.run(stage, context, [item async for item in stream])
+                stream = _to_async(sync_results)
+
+        return stream, context
+
     @property
     def metrics(self) -> dict[str, Any]:
         stage_metrics = {stage.name: stage.metrics for stage in self.stages}
