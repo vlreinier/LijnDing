@@ -67,3 +67,9 @@ def test_error_policy_validation():
 
     with pytest.raises(ValueError):
         ErrorPolicy(mode="retry", retries=0)
+
+def test_empty_pipeline():
+    pipeline = Pipeline()
+    data = [1, 2, 3]
+    results, _ = pipeline.collect(data)
+    assert results == data

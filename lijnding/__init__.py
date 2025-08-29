@@ -7,7 +7,7 @@ from .core.stage import stage
 from .core.context import Context
 from .core.errors import ErrorPolicy
 from .core.hooks import Hooks
-from .components.branch import Branch
+from .components.branch import branch
 
 __all__ = [
     "Pipeline",
