@@ -2,23 +2,37 @@ import pytest
 from lijnding import Pipeline, stage, Context
 
 # --- Test Functions for Processing ---
+# Must be registered to be found by the worker processes.
+
+@stage(register_for_processing=True)
 def _process_worker_func(x):
     return x * 2
 
+@stage(register_for_processing=True)
 def _process_context_func(context: Context, x):
     context.inc("proc_counter")
     return x
 
-@pytest.mark.skip(reason="ProcessingRunner is unstable and has been disabled.")
-def test_processing_backend_execution():
-    process_stage = stage(backend="process", workers=2)(_process_worker_func)
-    pipeline = Pipeline([process_stage])
-    with pytest.raises(NotImplementedError):
-        pipeline.collect([1, 2, 3, 4])
+def _unregistered_func(x):
+    return "should not run"
 
-@pytest.mark.skip(reason="ProcessingRunner is unstable and has been disabled.")
+def test_processing_backend_execution():
+    pipeline = Pipeline([_process_worker_func])
+    results, _ = pipeline.collect([1, 2, 3, 4])
+    assert sorted(results) == [2, 4, 6, 8]
+
 def test_processing_backend_context():
-    process_context_stage = stage(backend="process", workers=2)(_process_context_func)
-    pipeline = Pipeline([process_context_stage])
-    with pytest.raises(NotImplementedError):
-        pipeline.collect([1, 2, 3, 4])
+    pipeline = Pipeline([_process_context_func])
+    _, context = pipeline.collect([1, 2, 3, 4])
+    assert context.get("proc_counter") == 4
+
+def test_unregistered_stage_fails():
+    """
+    Tests that the pre-flight check correctly raises a TypeError
+    for a stage that was not registered.
+    """
+    unregistered_stage = stage(backend="process")(_unregistered_func)
+    pipeline = Pipeline([unregistered_stage])
+
+    with pytest.raises(TypeError, match="is not registered for multiprocessing"):
+        pipeline.collect([1, 2, 3])

@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Any, Iterable, List, Optional, Tuple, Union
 
-from ..backends.registry import get_runner
+from ..backends.runner_registry import get_runner
 from .context import Context
 from .stage import Stage, stage
 

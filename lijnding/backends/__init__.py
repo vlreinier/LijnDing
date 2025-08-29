@@ -8,6 +8,7 @@ from .serial import SerialRunner
 from .threading import ThreadingRunner
 from .processing import ProcessingRunner
 from .asyncio import AsyncioRunner
+from .runner_registry import get_runner
 
 __all__ = [
     "BaseRunner",
@@ -15,4 +16,5 @@ __all__ = [
     "ThreadingRunner",
     "ProcessingRunner",
     "AsyncioRunner",
+    "get_runner",
 ]

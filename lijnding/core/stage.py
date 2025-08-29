@@ -100,6 +100,7 @@ def stage(
     output_type: Optional[Type[Any]] = None,
     error_policy: Optional[ErrorPolicy] = None,
     hooks: Optional[Hooks] = None,
+    register_for_processing: bool = False,
 ) -> Union[Stage, Callable[[Callable[..., Any]], Stage]]:
     """
     A decorator to transform a function into a pipeline Stage.
@@ -118,9 +119,15 @@ def stage(
         output_type: Manually specify the expected output type.
         error_policy: An ErrorPolicy object to configure error handling.
         hooks: A Hooks object to attach monitoring functions.
+        register_for_processing: If True, registers the function so it can be
+                                 used with the 'process' backend.
     """
+    from ..backends.function_registry import register_function
 
     def wrapper(func: Callable[..., Any]) -> Stage:
+        if register_for_processing:
+            register_function(func, name=name)
+
         return Stage(
             func,
             name=name,
