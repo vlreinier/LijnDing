@@ -25,6 +25,9 @@ class BaseRunner(ABC):
         Executes the stage. This is the main entry point for a runner.
         It delegates to the appropriate method based on the stage type.
         """
+        if stage.stage_type == "source":
+            # Source stages ignore the input iterable and generate their own data.
+            return ensure_iterable(stage._invoke(context))
         if stage.stage_type == "aggregator":
             return self._run_aggregator(stage, context, iterable)
 

@@ -36,6 +36,9 @@ class Pipeline:
 
         # If this pipeline is empty, create a new one starting with the new stage.
         # Otherwise, add the new stage to the existing list.
+        if self.stages and self.stages[-1].stage_type == "source" and other_stage.stage_type == "source":
+            raise TypeError("Cannot pipe from one 'source' stage to another.")
+
         if not self.stages:
              return Pipeline([other_stage])
         return Pipeline(self.stages + [other_stage])

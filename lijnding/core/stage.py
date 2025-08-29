@@ -58,10 +58,14 @@ class Stage:
         self.hooks = hooks or Hooks()
 
         # Type inference and context injection detection
-        inferred_in, inferred_out = infer_types(func)
+        inferred_in, inferred_out, num_args = infer_types(func)
         self.input_type = input_type or inferred_in
         self.output_type = output_type or inferred_out
         self._inject_context = "context" in inspect.signature(func).parameters
+
+        # Overwrite stage_type if the function takes no input arguments
+        if num_args == 0:
+            self.stage_type = "source"
 
         # Metrics
         self.metrics: dict[str, Any] = {
@@ -84,6 +88,9 @@ class Stage:
 
     def _invoke(self, context: Context, *args: Any, **kwargs: Any) -> Any:
         """Invokes the stage's function, injecting context if required."""
+        if self.stage_type == "source":
+            return self.func(context) if self._inject_context else self.func()
+
         if self._inject_context:
             return self.func(context, *args, **kwargs)
         return self.func(*args, **kwargs)
