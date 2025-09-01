@@ -21,9 +21,9 @@ def clear_queue():
 def init_func(context: Context):
     # Use a combination of PID and Thread ID for a unique worker identifier
     worker_id = f"{os.getpid()}_{threading.get_ident()}"
-    # Store the unique ID in the worker-local state.
-    context.worker_state["id"] = worker_id
     event_queue.put(f"init_{worker_id}")
+    # The hook MUST return the state to be stored in context.worker_state
+    return {"id": worker_id}
 
 def exit_func(context: Context):
     # Retrieve the unique ID from the worker-local state.
@@ -37,6 +37,7 @@ class UnserializableState:
 
     def init(self, context: Context):
         event_queue.put(f"init_{self.worker_id}")
+        return {} # Must return a dictionary
 
     def exit(self, context: Context):
         event_queue.put(f"exit_{self.worker_id}")
