@@ -18,6 +18,30 @@ class Pipeline:
         self.name = name or "Pipeline"
         self.logger = get_logger(f"lijnding.pipeline.{self.name}")
 
+    def add(self, other: Any) -> "Pipeline":
+        """
+        Adds a component (Stage, Pipeline, or Branch) to this pipeline.
+        This enables a fluent, chainable interface for building pipelines.
+        """
+        # Local import to prevent circular dependency
+        from ..components.branch import Branch
+
+        other_stage: Stage
+        if isinstance(other, Stage):
+            other_stage = other
+        elif isinstance(other, Pipeline):
+            other_stage = other.to_stage()
+        elif isinstance(other, Branch):
+            other_stage = other.to_stage()
+        else:
+            raise TypeError(f"Unsupported type for pipeline composition: {type(other)}")
+
+        if self.stages and self.stages[-1].stage_type == "source" and other_stage.stage_type == "source":
+            raise TypeError("Cannot pipe from one 'source' stage to another.")
+
+        self.stages.append(other_stage)
+        return self
+
     def __or__(self, other: Any) -> "Pipeline":
         """
         Composes this pipeline with another component (Stage, Pipeline, or Branch).

@@ -1,4 +1,5 @@
 import pytest
+import asyncio
 from lijnding.core.pipeline import Pipeline
 from lijnding.core.stage import Stage, stage
 from lijnding.core.context import Context
@@ -18,6 +19,11 @@ def to_string(x: int) -> str:
 def context_incrementer(context: Context, x: int) -> int:
     context.inc("my_counter")
     return x
+
+@stage(backend="async")
+async def add_one_async(x: int) -> int:
+    await asyncio.sleep(0.001)
+    return x + 1
 
 # --- Core Tests ---
 
@@ -73,3 +79,46 @@ def test_empty_pipeline():
     data = [1, 2, 3]
     results, _ = pipeline.collect(data)
     assert results == data
+
+
+def test_stage_direct_execution():
+    """Tests that a single stage can be executed directly using .collect()."""
+    data = [1, 2, 3]
+    results, context = add_one.collect(data)
+    assert results == [2, 3, 4]
+    assert isinstance(context, Context)
+
+
+@pytest.mark.asyncio
+async def test_stage_direct_async_execution():
+    """Tests that a single async stage can be executed directly using .run_async()."""
+    data = [1, 2, 3]
+    stream, context = await add_one_async.run_async(data)
+    results = [item async for item in stream]
+    assert results == [2, 3, 4]
+    assert isinstance(context, Context)
+
+
+def test_pipeline_fluent_interface():
+    """Tests that a pipeline can be built using the fluent .add() interface."""
+    pipeline = Pipeline().add(add_one).add(to_string)
+    assert len(pipeline.stages) == 2
+    assert pipeline.stages[0].name == "add_one"
+    assert pipeline.stages[1].name == "to_string"
+
+    data = [1, 2, 3]
+    results, _ = pipeline.collect(data)
+    assert results == ["2", "3", "4"]
+
+
+def test_stage_informative_error_message():
+    """Tests that calling a Pipeline-only method on a Stage gives a helpful error."""
+    with pytest.raises(AttributeError) as excinfo:
+        add_one.to_stage()  # to_stage is a method on Pipeline, not Stage
+
+    expected_message = (
+        "'Stage' object has no attribute 'to_stage'. "
+        "Did you mean to wrap it in a Pipeline first? "
+        "e.g., Pipeline([add_one]).to_stage(...)"
+    )
+    assert str(excinfo.value) == expected_message

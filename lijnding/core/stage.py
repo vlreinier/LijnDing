@@ -9,6 +9,10 @@ from typing import (
     Optional,
     Type,
     Union,
+    List,
+    Tuple,
+    AsyncIterator,
+    AsyncIterable,
 )
 
 from ..typing.inference import infer_types
@@ -65,6 +69,44 @@ class Stage:
         from .pipeline import Pipeline
         return Pipeline([self]) | other
 
+    def run(
+        self, data: Iterable[Any], *, collect: bool = False
+    ) -> Tuple[Union[List[Any], Iterable[Any]], Context]:
+        """
+        Executes the stage as a single-stage pipeline.
+
+        :param data: An iterable of data to process.
+        :param collect: If True, returns the results as a list. Otherwise, returns an iterator.
+        :return: A tuple containing the results and the execution context.
+        """
+        from .pipeline import Pipeline
+        pipeline = Pipeline([self])
+        return pipeline.run(data, collect=collect)
+
+    def collect(self, data: Iterable[Any]) -> Tuple[List[Any], Context]:
+        """
+        Executes the stage and collects all results into a list.
+
+        :param data: An iterable of data to process.
+        :return: A tuple containing the list of results and the execution context.
+        """
+        from .pipeline import Pipeline
+        pipeline = Pipeline([self])
+        return pipeline.collect(data)
+
+    async def run_async(
+        self, data: Union[Iterable[Any], AsyncIterable[Any]]
+    ) -> Tuple[AsyncIterator[Any], Context]:
+        """
+        Asynchronously executes the stage as a single-stage pipeline.
+
+        :param data: An iterable or async iterable of data to process.
+        :return: A tuple containing an async iterator for the results and the execution context.
+        """
+        from .pipeline import Pipeline
+        pipeline = Pipeline([self])
+        return await pipeline.run_async(data)
+
     def _invoke(self, context: Context, *args: Any, **kwargs: Any) -> Any:
         if self._inject_context:
             # Temporarily attach the stage-specific logger to the context
@@ -83,6 +125,30 @@ class Stage:
             if self.stage_type == "source":
                 return self.func()
             return self.func(*args, **kwargs)
+
+    def __getattr__(self, name: str) -> Any:
+        """
+        Provides a more helpful error message if a user tries to call a
+        Pipeline-specific method on a Stage.
+        """
+        from .pipeline import Pipeline
+
+        # Check if the attribute exists on the Pipeline class
+        if hasattr(Pipeline, name):
+            # Exclude methods that are intentionally on Stage
+            if name in ("run", "run_async", "collect"):
+                # This should not be reached if methods are defined, but as a safeguard.
+                raise AttributeError(f"'Stage' object has no attribute '{name}'")
+
+            message = (
+                f"'Stage' object has no attribute '{name}'. "
+                f"Did you mean to wrap it in a Pipeline first? "
+                f"e.g., Pipeline([{self.name}]).{name}(...)"
+            )
+            raise AttributeError(message)
+
+        # If the attribute is not on Pipeline, raise the default error.
+        raise AttributeError(f"'Stage' object has no attribute '{name}'")
 
 
 def stage(
