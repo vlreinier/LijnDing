@@ -29,6 +29,7 @@ http = ["aiohttp>=3.8.0"]
 test = [
     "pytest>=8.0",
     "pytest-asyncio",
+    "pytest-aiohttp", # For testing the http component
 ]
 
 [tool.pytest.ini_options]
