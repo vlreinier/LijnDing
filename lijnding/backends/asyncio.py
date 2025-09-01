@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 from typing import TYPE_CHECKING, Any, AsyncIterator, Iterable, Iterator
 
 from .base import BaseRunner
@@ -65,12 +66,16 @@ class AsyncioRunner(BaseRunner):
                     # result_obj could be a coroutine or an async generator
                     result_obj = stage._invoke(context, item)
 
-                    if hasattr(result_obj, '__aiter__'): # It's an async generator
+                    # Use the more specific inspect.isasyncgen to check for async generators
+                    if inspect.isasyncgen(result_obj):
                         async for res in result_obj:
                             yield res
                     else: # It's a coroutine
-                        res = await result_obj
-                        yield res
+                        results = await result_obj
+                        # Handle the case where the coroutine returns an iterable
+                        from ..core.utils import ensure_iterable
+                        for res in ensure_iterable(results):
+                            yield res
                 else:
                     # Run sync functions in a thread to avoid blocking the event loop
                     results = await asyncio.to_thread(stage._invoke, context, item)

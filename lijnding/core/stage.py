@@ -38,7 +38,7 @@ class Stage:
         self.workers = workers
         self.error_policy = error_policy or ErrorPolicy()
         self.hooks = hooks or Hooks()
-        self.is_async = inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func)
+        self.is_async = inspect.iscoroutinefunction(func)
 
         inferred_in, inferred_out, num_args = infer_types(func)
         self.input_type = input_type or inferred_in
