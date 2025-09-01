@@ -121,7 +121,7 @@ class Pipeline:
         is_async_pipeline = "async" in self._get_required_backend_names()
 
         if is_async_pipeline:
-            @stage(name=pipeline_name, stage_type="itemwise")
+            @stage(name=pipeline_name, stage_type="itemwise", backend="async")
             async def _pipeline_as_stage_func_async(context: Context, item: Any) -> AsyncIterator[Any]:
                 stream, _ = await self.run_async(data=[item])
                 async for inner_item in stream:

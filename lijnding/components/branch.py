@@ -54,7 +54,7 @@ class Branch:
         is_async_branch = any("async" in p._get_required_backend_names() for p in self.branches)
 
         if is_async_branch:
-            @stage(name=f"Branch(merge='{self.merge}')", stage_type="itemwise")
+            @stage(name=f"Branch(merge='{self.merge}')", stage_type="itemwise", backend="async")
             async def _branch_func_async(context: "Context", item: Any) -> AsyncIterator[Any]:
                 branch_iterators = [
                     (await branch.run_async([item]))[0] for branch in self.branches
