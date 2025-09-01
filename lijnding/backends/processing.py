@@ -22,7 +22,8 @@ def _worker_process(
     from ..core.context import Context
     from ..core.utils import ensure_iterable
 
-    stage = None # Will be set on the first task
+    stage = None
+    worker_context = None
 
     while True:
         task = q_in.get()
@@ -33,12 +34,19 @@ def _worker_process(
         try:
             stage_payload, item, context_proxies = task
 
-            # The stage is serialized with every task, but we only need to
-            # deserialize it once per worker. This is a small optimization.
+            # One-time initialization for the worker process
             if stage is None:
                 stage = serializer.loads(stage_payload)
+                worker_context = Context(_from_proxies=context_proxies)
 
-            worker_context = Context(_from_proxies=context_proxies)
+                # Call the worker initialization hook if it exists
+                if stage.hooks.on_worker_init:
+                    try:
+                        worker_context.worker_state = stage.hooks.on_worker_init(worker_context) or {}
+                    except Exception as e:
+                        # Propagate the error and terminate the worker
+                        q_out.put(e)
+                        break
 
             # Invoke the stage logic. This will also handle the context.logger injection.
             results = stage._invoke(worker_context, item)

@@ -37,6 +37,23 @@ class ThreadingRunner(BaseRunner):
                 q_in.put(SENTINEL)
 
         def worker():
+            import copy
+            worker_context = copy.copy(context)
+            worker_context.worker_state = {}
+
+            # Call the worker initialization hook if it exists
+            if stage.hooks.on_worker_init:
+                try:
+                    worker_context.worker_state = stage.hooks.on_worker_init(worker_context) or {}
+                except Exception as e:
+                    stage.logger.error(f"Error in on_worker_init: {e}", exc_info=True)
+                    # To prevent the worker from starting in a bad state, we send a sentinel
+                    # and an exception, then break.
+                    q_in.task_done()
+                    q_out.put(SENTINEL)
+                    q_out.put(e)
+                    return
+
             while True:
                 item = q_in.get()
                 if item is SENTINEL:
@@ -46,7 +63,7 @@ class ThreadingRunner(BaseRunner):
 
                 try:
                     stage.metrics["items_in"] += 1
-                    results = stage._invoke(context, item)
+                    results = stage._invoke(worker_context, item)
                     output_stream = ensure_iterable(results)
 
                     count = 0

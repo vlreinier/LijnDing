@@ -15,6 +15,7 @@ class Context:
 
     def __init__(self, mp_safe: bool = False, initial_data: Optional[Dict[str, Any]] = None, *, _from_proxies=None):
         self.logger: logging.Logger = get_logger("lijnding.context")
+        self.worker_state: Dict[str, Any] = {}
 
         if _from_proxies:
             # Reconstruct from existing manager proxies
