@@ -51,22 +51,42 @@ class Branch:
         """
         Converts the Branch configuration into an executable Stage.
         """
-        @stage(name=f"Branch(merge='{self.merge}')", stage_type="itemwise")
-        def _branch_func(context: "Context", item: Any) -> Iterable[Any]:
-            branch_iterators = [
-                branch.run([item], collect=False)[0] for branch in self.branches
-            ]
+        is_async_branch = any("async" in p._get_required_backend_names() for p in self.branches)
 
-            if self.merge == "concat":
-                for it in branch_iterators:
-                    yield from it
+        if is_async_branch:
+            @stage(name=f"Branch(merge='{self.merge}')", stage_type="itemwise")
+            async def _branch_func_async(context: "Context", item: Any) -> AsyncIterator[Any]:
+                branch_iterators = [
+                    (await branch.run_async([item]))[0] for branch in self.branches
+                ]
 
-            elif self.merge == "zip":
-                for zipped_items in zip(*branch_iterators):
-                    yield zipped_items
+                if self.merge == "concat":
+                    for it in branch_iterators:
+                        async for res in it:
+                            yield res
+                elif self.merge == "zip":
+                    raise NotImplementedError("Async zip merge strategy is not yet implemented.")
+                elif self.merge == "zip_longest":
+                    raise NotImplementedError("Async zip_longest merge strategy is not yet implemented.")
 
-            elif self.merge == "zip_longest":
-                for zipped_items in zip_longest(*branch_iterators, fillvalue=None):
-                    yield zipped_items
+            return _branch_func_async
+        else:
+            @stage(name=f"Branch(merge='{self.merge}')", stage_type="itemwise")
+            def _branch_func_sync(context: "Context", item: Any) -> Iterable[Any]:
+                branch_iterators = [
+                    branch.run([item], collect=False)[0] for branch in self.branches
+                ]
 
-        return _branch_func
+                if self.merge == "concat":
+                    for it in branch_iterators:
+                        yield from it
+
+                elif self.merge == "zip":
+                    for zipped_items in zip(*branch_iterators):
+                        yield zipped_items
+
+                elif self.merge == "zip_longest":
+                    for zipped_items in zip_longest(*branch_iterators, fillvalue=None):
+                        yield zipped_items
+
+            return _branch_func_sync

@@ -112,15 +112,27 @@ class Pipeline:
         return {"stages": stage_metrics}
 
     def to_stage(self) -> Stage:
-        """Converts the entire pipeline into a single, reusable Stage."""
+        """
+        Converts the entire pipeline into a single, reusable Stage.
+        If the pipeline contains any async stages, this will produce an async Stage.
+        """
         pipeline_name = self.name or "nested_pipeline"
 
-        @stage(name=pipeline_name, stage_type="itemwise")
-        def _pipeline_as_stage_func(context: Context, item: Any) -> Iterable[Any]:
-            inner_results, _ = self.run(data=[item], collect=True)
-            yield from inner_results
+        is_async_pipeline = "async" in self._get_required_backend_names()
 
-        return _pipeline_as_stage_func
+        if is_async_pipeline:
+            @stage(name=pipeline_name, stage_type="itemwise")
+            async def _pipeline_as_stage_func_async(context: Context, item: Any) -> AsyncIterator[Any]:
+                stream, _ = await self.run_async(data=[item])
+                async for inner_item in stream:
+                    yield inner_item
+            return _pipeline_as_stage_func_async
+        else:
+            @stage(name=pipeline_name, stage_type="itemwise")
+            def _pipeline_as_stage_func_sync(context: Context, item: Any) -> Iterable[Any]:
+                inner_results, _ = self.run(data=[item], collect=True)
+                yield from inner_results
+            return _pipeline_as_stage_func_sync
 
     def __repr__(self) -> str:
         stage_names = " | ".join(s.name for s in self.stages)

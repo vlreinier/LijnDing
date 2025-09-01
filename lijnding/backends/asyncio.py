@@ -4,6 +4,7 @@ import asyncio
 from typing import TYPE_CHECKING, Any, AsyncIterator, Iterable, Iterator
 
 from .base import BaseRunner
+from ..core.utils import ensure_iterable
 
 if TYPE_CHECKING:
     from ..core.context import Context
@@ -23,6 +24,18 @@ class AsyncioRunner(BaseRunner):
         """
         Asynchronously executes the stage.
         """
+        if stage.stage_type == "source":
+            # Source stages ignore the input iterable and generate their own data.
+            results = stage._invoke(context)
+            output_stream = ensure_iterable(results)
+            if hasattr(output_stream, '__aiter__'):
+                async for res in output_stream:
+                    yield res
+            else:
+                for res in output_stream:
+                    yield res
+            return
+
         if stage.stage_type == "aggregator":
             # We need to collect all items from the async iterator first.
             items = [item async for item in iterable]
@@ -32,7 +45,7 @@ class AsyncioRunner(BaseRunner):
             else:
                 results = await asyncio.to_thread(stage._invoke, context, items)
 
-            output_stream = stage._ensure_iterable(results)
+            output_stream = ensure_iterable(results)
             for res in output_stream:
                 yield res
         else:
@@ -50,14 +63,17 @@ class AsyncioRunner(BaseRunner):
             try:
                 if stage.is_async:
                     results = await stage._invoke(context, item)
+                    if hasattr(results, '__aiter__'):
+                        async for res in results:
+                            yield res
+                    else:
+                        yield results
                 else:
                     # Run sync functions in a thread to avoid blocking the event loop
                     results = await asyncio.to_thread(stage._invoke, context, item)
-
-                from ..core.utils import ensure_iterable
-                output_stream = ensure_iterable(results)
-                for res in output_stream:
-                    yield res
+                    from ..core.utils import ensure_iterable
+                    for res in ensure_iterable(results):
+                        yield res
 
             except Exception as e:
                 # Proper error handling with policies would go here.
