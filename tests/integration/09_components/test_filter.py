@@ -12,8 +12,9 @@ async def test_filter_component(backend):
     """
     Tests the filter_ component with different backends.
     """
-    # The filter component creates a stage, so we pass the backend to it
-    pipeline: Pipeline = filter_(is_even, backend=backend)
+    # The filter component creates a stage, which must be wrapped in a Pipeline
+    # before being passed to the run_pipeline helper.
+    pipeline = Pipeline([filter_(is_even, backend=backend)])
 
     data = list(range(10))
     results, _ = await run_pipeline(pipeline, data)
