@@ -1,15 +1,15 @@
 import asyncio
 from typing import Callable, Any, Coroutine, AsyncGenerator
 
+from ..core.stage import stage, Stage
+
+# We perform a soft import here. The actual check for whether the library
+# is installed happens inside the component's factory function.
 try:
     import aiohttp
+    _AIOHTTP_INSTALLED = True
 except ImportError:
-    raise ImportError(
-        "The 'http_request' component requires the 'aiohttp' library. "
-        "Please install it with: pip install lijnding[http]"
-    )
-
-from ..core.stage import stage, Stage
+    _AIOHTTP_INSTALLED = False
 
 
 def http_request(
@@ -32,6 +32,12 @@ def http_request(
     :param headers: A dictionary of headers to include in the request.
     :return: A new asynchronous `Stage`.
     """
+    if not _AIOHTTP_INSTALLED:
+        raise ImportError(
+            "The 'http_request' component requires the 'aiohttp' library. "
+            "Please install it with: pip install lijnding[http]"
+        )
+
     @stage(name=name, backend="async", stage_type="itemwise")
     async def _http_request_stage(item: Any) -> AsyncGenerator[str, None]:
         """The actual async stage function that performs the HTTP request."""
