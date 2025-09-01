@@ -123,7 +123,7 @@ def test_processing_hook_with_unserializable_state_fails():
 
     # This should fail because the 'state_manager' instance with its lock
     # cannot be serialized by dill to be sent to the worker processes.
-        with pytest.raises(Exception):
+    with pytest.raises(Exception):
         pipeline.collect(range(workers))
 
         # The test passes if any exception is raised, as we just want to
