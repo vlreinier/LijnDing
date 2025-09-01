@@ -20,3 +20,10 @@ classifiers = [
 [project.urls]
 "Homepage" = "https://github.com/example/lijnding"
 "Bug Tracker" = "https://github.com/example/lijnding/issues"
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0",
+    "pytest-asyncio",
+    "dill",
+]
