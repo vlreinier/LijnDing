@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import inspect
 from typing import TYPE_CHECKING, Any, AsyncIterator, Iterable, Iterator
 
 from .base import BaseRunner
@@ -28,10 +27,7 @@ class AsyncioRunner(BaseRunner):
             # We need to collect all items from the async iterator first.
             items = [item async for item in iterable]
             # Then run the aggregator logic.
-            # The aggregator function itself might be sync or async.
-            is_async_func = inspect.iscoroutinefunction(stage.func)
-
-            if is_async_func:
+            if stage.is_async:
                 results = await stage._invoke(context, items)
             else:
                 results = await asyncio.to_thread(stage._invoke, context, items)
@@ -50,11 +46,9 @@ class AsyncioRunner(BaseRunner):
         """
         Processes items concurrently using asyncio.
         """
-        is_async_func = inspect.iscoroutinefunction(stage.func)
-
         async for item in iterable:
             try:
-                if is_async_func:
+                if stage.is_async:
                     results = await stage._invoke(context, item)
                 else:
                     # Run sync functions in a thread to avoid blocking the event loop
