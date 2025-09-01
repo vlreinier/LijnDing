@@ -59,6 +59,8 @@ class AsyncioRunner(BaseRunner):
     ) -> AsyncIterator[Any]:
         """
         Processes items concurrently using asyncio.
+        This method contains the core logic for unwrapping nested components
+        like Pipelines and Branches, which may return generators.
         """
         async for item in iterable:
             try:
@@ -66,20 +68,36 @@ class AsyncioRunner(BaseRunner):
                     # result_obj could be a coroutine or an async generator
                     result_obj = stage._invoke(context, item)
 
-                    # Use the more specific inspect.isasyncgen to check for async generators
                     if inspect.isasyncgen(result_obj):
+                        # The stage returned an async generator. We iterate through it.
                         async for res in result_obj:
                             yield res
-                    else: # It's a coroutine
+                    else:
+                        # The stage returned a coroutine. We await it.
                         results = await result_obj
-                        # Handle the case where the coroutine returns an iterable
-                        for res in ensure_iterable(results):
-                            yield res
+
+                        # The awaited result could be another generator.
+                        if inspect.isasyncgen(results):
+                            async for res in results:
+                                yield res
+                        elif inspect.isgenerator(results):
+                            for res in results:
+                                yield res
+                        else:
+                            # The result is a simple value or a sync iterable.
+                            for res in ensure_iterable(results):
+                                yield res
                 else:
                     # Run sync functions in a thread to avoid blocking the event loop
                     results = await asyncio.to_thread(stage._invoke, context, item)
-                    for res in ensure_iterable(results):
-                        yield res
+
+                    # The result of the sync function could be a generator (e.g., nested sync pipeline)
+                    if inspect.isgenerator(results):
+                        for res in results:
+                            yield res
+                    else:
+                        for res in ensure_iterable(results):
+                            yield res
 
             except Exception as e:
                 # Proper error handling with policies would go here.

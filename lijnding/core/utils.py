@@ -1,15 +1,18 @@
+import types
 from typing import Any, Iterable
 
-def ensure_iterable(x: Any) -> Iterable[Any]:
-    """
-    Ensures the input is a non-string iterable.
 
-    - If x is None, returns an empty list.
-    - If x is already a non-string iterable, returns x.
-    - Otherwise, wraps x in a list.
+def ensure_iterable(obj: Any) -> Iterable[Any]:
     """
-    if x is None:
+    Ensures that the given object is an iterable.
+    If it's a list, tuple, or generator, it's returned as is.
+    If it's another type, it's wrapped in a list.
+    `None` is treated as an empty list.
+    """
+    if obj is None:
         return []
-    if hasattr(x, "__iter__") and not isinstance(x, (str, bytes, dict)):
-        return x
-    return [x]
+    # Pass through lists, tuples, and all kinds of generators
+    if isinstance(obj, (list, tuple, types.GeneratorType, types.AsyncGeneratorType)):
+        return obj
+    # Wrap other types in a list
+    return [obj]
