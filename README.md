@@ -1,6 +1,6 @@
-# LijnDing: A Composable Pipeline Framework
+# lijnding: A Composable Pipeline Framework
 
-LijnDing is a lightweight, type-aware, and composable pipeline framework for Python. It allows you to build complex data processing workflows by chaining together simple, reusable stages.
+lijnding is a lightweight, type-aware, and composable pipeline framework for Python. It allows you to build complex data processing workflows by chaining together simple, reusable stages.
 
 ## Core Concepts
 
