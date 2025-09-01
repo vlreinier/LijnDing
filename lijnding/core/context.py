@@ -3,6 +3,9 @@ from __future__ import annotations
 import multiprocessing as mp
 import threading
 from typing import Any, Dict, Optional
+import logging
+
+from .log import get_logger
 
 
 class Context:
@@ -11,6 +14,8 @@ class Context:
     """
 
     def __init__(self, mp_safe: bool = False, initial_data: Optional[Dict[str, Any]] = None, *, _from_proxies=None):
+        self.logger: logging.Logger = get_logger("lijnding.context")
+
         if _from_proxies:
             # Reconstruct from existing manager proxies
             self._data, self._lock = _from_proxies

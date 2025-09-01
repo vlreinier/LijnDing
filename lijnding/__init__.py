@@ -7,15 +7,35 @@ from .core.stage import stage
 from .core.context import Context
 from .core.errors import ErrorPolicy
 from .core.hooks import Hooks
-from .components.branch import branch
+from .backends.runner_registry import register_backend
+from .components import (
+    branch,
+    filter_,
+    read_from_file,
+    write_to_file,
+    save_progress,
+    http_request
+)
+
 
 __all__ = [
+    # Core API
     "Pipeline",
     "stage",
     "Context",
     "ErrorPolicy",
     "Hooks",
-    "Branch",
+
+    # Components
+    "branch",
+    "filter_",
+    "read_from_file",
+    "write_to_file",
+    "save_progress",
+    "http_request",
+
+    # Extensibility
+    "register_backend",
 ]
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"

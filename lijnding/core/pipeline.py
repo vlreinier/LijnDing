@@ -1,9 +1,11 @@
 from __future__ import annotations
-from typing import Any, Iterable, List, Optional, Tuple, Union
+from typing import Any, Iterable, List, Optional, Tuple, Union, AsyncIterator, AsyncIterable
+import time
 
 from ..backends.runner_registry import get_runner
 from .context import Context
 from .stage import Stage, stage
+from .log import get_logger
 
 
 class Pipeline:
@@ -14,6 +16,7 @@ class Pipeline:
     def __init__(self, stages: Optional[List[Stage]] = None, *, name: Optional[str] = None):
         self.stages: List[Stage] = stages or []
         self.name = name or "Pipeline"
+        self.logger = get_logger(f"lijnding.pipeline.{self.name}")
 
     def __or__(self, other: Any) -> "Pipeline":
         """
@@ -57,16 +60,23 @@ class Pipeline:
     def run(
         self, data: Iterable[Any], *, collect: bool = False
     ) -> Tuple[Union[List[Any], Iterable[Any]], Context]:
+        self.logger.info("Pipeline run started.")
+        start_time = time.time()
         context = self._build_context()
         stream: Iterable[Any] = data
 
-        for stage in self.stages:
-            runner = get_runner(getattr(stage, "backend", "serial"))
-            stream = runner.run(stage, context, stream)
+        try:
+            for stage in self.stages:
+                runner = get_runner(getattr(stage, "backend", "serial"))
+                stream = runner.run(stage, context, stream)
 
-        if collect:
-            return list(stream), context
-        return stream, context
+            if collect:
+                return list(stream), context
+            return stream, context
+        finally:
+            end_time = time.time()
+            total_time = end_time - start_time
+            self.logger.info(f"Pipeline run finished in {total_time:.4f} seconds.")
 
     def collect(self, data: Iterable[Any]) -> Tuple[List[Any], Context]:
         stream, context = self.run(data, collect=True)
@@ -80,6 +90,8 @@ class Pipeline:
         Asynchronously executes the pipeline.
         This method is required for pipelines that use the 'async' backend.
         """
+        self.logger.info("Async pipeline run started.")
+        start_time = time.time()
         context = self._build_context()
 
         # Ensure the input is an async iterable
@@ -93,18 +105,22 @@ class Pipeline:
         else:
             stream = data # type: ignore
 
-        for stage in self.stages:
-            runner = get_runner(getattr(stage, "backend", "serial"))
-            if hasattr(runner, 'run_async'):
-                stream = runner.run_async(stage, context, stream)
-            else:
-                # This is a synchronous bridge for running a sync stage in an async pipeline
-                # It's not perfectly non-blocking but is a pragmatic solution.
-                # A more advanced implementation would run this in a thread pool.
-                sync_results = runner.run(stage, context, [item async for item in stream])
-                stream = _to_async(sync_results)
-
-        return stream, context
+        try:
+            for stage in self.stages:
+                runner = get_runner(getattr(stage, "backend", "serial"))
+                if hasattr(runner, 'run_async'):
+                    stream = runner.run_async(stage, context, stream)
+                else:
+                    # This is a synchronous bridge for running a sync stage in an async pipeline
+                    # It's not perfectly non-blocking but is a pragmatic solution.
+                    # A more advanced implementation would run this in a thread pool.
+                    sync_results = runner.run(stage, context, [item async for item in stream])
+                    stream = _to_async(sync_results)
+            return stream, context
+        finally:
+            end_time = time.time()
+            total_time = end_time - start_time
+            self.logger.info(f"Async pipeline run finished in {total_time:.4f} seconds.")
 
     @property
     def metrics(self) -> dict[str, Any]:

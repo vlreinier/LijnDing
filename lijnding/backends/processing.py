@@ -22,6 +22,8 @@ def _worker_process(
     from ..core.context import Context
     from ..core.utils import ensure_iterable
 
+    stage = None # Will be set on the first task
+
     while True:
         task = q_in.get()
         if task == SENTINEL:
@@ -29,20 +31,23 @@ def _worker_process(
 
         try:
             stage_payload, item, context_proxies = task
-            stage_func, inject_context = serializer.loads(stage_payload)
 
-            worker_context = None
-            if context_proxies:
-                worker_context = Context(_from_proxies=context_proxies)
+            # The stage is serialized with every task, but we only need to
+            # deserialize it once per worker. This is a small optimization.
+            if stage is None:
+                stage = serializer.loads(stage_payload)
 
-            if inject_context:
-                results = stage_func(worker_context, item)
-            else:
-                results = stage_func(item)
+            worker_context = Context(_from_proxies=context_proxies)
+
+            # Invoke the stage logic. This will also handle the context.logger injection.
+            results = stage._invoke(worker_context, item)
 
             for res in ensure_iterable(results):
                 q_out.put(res)
+
         except Exception as e:
+            # Errors are caught and sent back to the main process to be handled
+            # by the pipeline's error policy.
             q_out.put(e)
 
 class ProcessingRunner(BaseRunner):
@@ -67,8 +72,9 @@ class ProcessingRunner(BaseRunner):
 
         context_proxies = (context._data, context._lock) if getattr(context, "_mp_safe", False) else None
 
-        # Serialize the function once, to be sent with each task
-        stage_payload = serializer.dumps((stage.func, stage._inject_context))
+        # Serialize the entire stage object once.
+        # This is safe because we are using 'dill' which can handle complex objects.
+        stage_payload = serializer.dumps(stage)
 
         processes = [
             mp.Process(target=_worker_process, args=(q_in, q_out), daemon=True)

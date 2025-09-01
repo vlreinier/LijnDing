@@ -11,6 +11,9 @@ authors = [
 description = "A Composable Pipeline Framework for Python"
 readme = "README.md"
 requires-python = ">=3.8"
+dependencies = [
+    "dill", # For robust serialization in the processing backend
+]
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
@@ -22,10 +25,11 @@ classifiers = [
 "Bug Tracker" = "https://github.com/example/lijnding/issues"
 
 [project.optional-dependencies]
+http = ["aiohttp>=3.8.0"]
 test = [
     "pytest>=8.0",
     "pytest-asyncio",
-    "dill",
+    "aiohttp>=3.8.0", # For testing the http component
 ]
 
 [tool.pytest.ini_options]

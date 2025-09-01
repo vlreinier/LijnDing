@@ -7,6 +7,9 @@ from .branch import Branch
 from .map import map_values
 from .reduce import reduce
 from .split import split
+from .filter import filter_
+from .io import read_from_file, write_to_file, save_progress
+from .http import http_request
 
 __all__ = [
     "batch",
@@ -14,4 +17,9 @@ __all__ = [
     "map_values",
     "reduce",
     "split",
+    "filter_",
+    "read_from_file",
+    "write_to_file",
+    "save_progress",
+    "http_request",
 ]

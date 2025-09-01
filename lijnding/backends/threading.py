@@ -48,10 +48,16 @@ class ThreadingRunner(BaseRunner):
                     stage.metrics["items_in"] += 1
                     results = stage._invoke(context, item)
                     output_stream = ensure_iterable(results)
+
+                    count = 0
                     for res in output_stream:
                         stage.metrics["items_out"] += 1
+                        count += 1
                         q_out.put(res)
+
+                    stage.logger.debug(f"Successfully processed item, produced {count} output item(s).")
                 except Exception as e:
+                    stage.logger.warning(f"Error processing item: {e}", exc_info=True)
                     q_out.put(e)
                 finally:
                     q_in.task_done()

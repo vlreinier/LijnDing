@@ -36,14 +36,19 @@ class SerialRunner(BaseRunner):
                     # The result of an itemwise stage can be a single item or an iterable
                     output_stream = ensure_iterable(results)
 
+                    count = 0
                     for res in output_stream:
                         stage.metrics["items_out"] += 1
+                        count += 1
                         yield res
+
+                    stage.logger.debug(f"Successfully processed item, produced {count} output item(s).")
 
                     # If successful, break the retry loop
                     break
 
                 except Exception as e:
+                    stage.logger.warning(f"Error processing item: {e}", exc_info=True)
                     attempts += 1
                     stage.metrics["errors"] += 1
 

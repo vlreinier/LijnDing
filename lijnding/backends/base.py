@@ -25,14 +25,22 @@ class BaseRunner(ABC):
         Executes the stage. This is the main entry point for a runner.
         It delegates to the appropriate method based on the stage type.
         """
-        if stage.stage_type == "source":
-            # Source stages ignore the input iterable and generate their own data.
-            return ensure_iterable(stage._invoke(context))
-        if stage.stage_type == "aggregator":
-            return self._run_aggregator(stage, context, iterable)
+        stage.logger.info("Stage run started.")
+        start_time = time.time()
 
-        # Default to itemwise processing
-        return self._run_itemwise(stage, context, iterable)
+        try:
+            if stage.stage_type == "source":
+                # Source stages ignore the input iterable and generate their own data.
+                return ensure_iterable(stage._invoke(context))
+            if stage.stage_type == "aggregator":
+                return self._run_aggregator(stage, context, iterable)
+
+            # Default to itemwise processing
+            return self._run_itemwise(stage, context, iterable)
+        finally:
+            end_time = time.time()
+            total_time = end_time - start_time
+            stage.logger.info(f"Stage run finished in {total_time:.4f} seconds. Metrics: {stage.metrics}")
 
     @abstractmethod
     def _run_itemwise(self, stage: "Stage", context: "Context", iterable: Iterable[Any]) -> Iterator[Any]:

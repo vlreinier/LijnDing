@@ -25,34 +25,42 @@ class AsyncioRunner(BaseRunner):
         """
         Asynchronously executes the stage.
         """
-        if stage.stage_type == "source":
-            # Source stages ignore the input iterable and generate their own data.
-            results = stage._invoke(context)
-            output_stream = ensure_iterable(results)
-            if hasattr(output_stream, '__aiter__'):
-                async for res in output_stream:
-                    yield res
-            else:
+        stage.logger.info("Async stage run started.")
+        start_time = asyncio.get_running_loop().time()
+
+        try:
+            if stage.stage_type == "source":
+                # Source stages ignore the input iterable and generate their own data.
+                results = stage._invoke(context)
+                output_stream = ensure_iterable(results)
+                if hasattr(output_stream, '__aiter__'):
+                    async for res in output_stream:
+                        yield res
+                else:
+                    for res in output_stream:
+                        yield res
+                return
+
+            if stage.stage_type == "aggregator":
+                # We need to collect all items from the async iterator first.
+                items = [item async for item in iterable]
+                # Then run the aggregator logic.
+                if stage.is_async:
+                    results = await stage._invoke(context, items)
+                else:
+                    results = await asyncio.to_thread(stage._invoke, context, items)
+
+                output_stream = ensure_iterable(results)
                 for res in output_stream:
                     yield res
-            return
-
-        if stage.stage_type == "aggregator":
-            # We need to collect all items from the async iterator first.
-            items = [item async for item in iterable]
-            # Then run the aggregator logic.
-            if stage.is_async:
-                results = await stage._invoke(context, items)
             else:
-                results = await asyncio.to_thread(stage._invoke, context, items)
-
-            output_stream = ensure_iterable(results)
-            for res in output_stream:
-                yield res
-        else:
-            # Itemwise processing
-            async for res in self._run_itemwise_async(stage, context, iterable):
-                yield res
+                # Itemwise processing
+                async for res in self._run_itemwise_async(stage, context, iterable):
+                    yield res
+        finally:
+            end_time = asyncio.get_running_loop().time()
+            total_time = end_time - start_time
+            stage.logger.info(f"Async stage run finished in {total_time:.4f} seconds. Metrics: {stage.metrics}")
 
     async def _run_itemwise_async(
         self, stage: "Stage", context: "Context", iterable: AsyncIterator[Any]
@@ -64,6 +72,7 @@ class AsyncioRunner(BaseRunner):
         """
         async for item in iterable:
             try:
+                count = 0
                 if stage.is_async:
                     # result_obj could be a coroutine or an async generator
                     result_obj = stage._invoke(context, item)
@@ -72,6 +81,7 @@ class AsyncioRunner(BaseRunner):
                         # The stage returned an async generator. We iterate through it.
                         async for res in result_obj:
                             yield res
+                            count += 1
                     else:
                         # The stage returned a coroutine. We await it.
                         results = await result_obj
@@ -80,13 +90,16 @@ class AsyncioRunner(BaseRunner):
                         if inspect.isasyncgen(results):
                             async for res in results:
                                 yield res
+                                count += 1
                         elif inspect.isgenerator(results):
                             for res in results:
                                 yield res
+                                count += 1
                         else:
                             # The result is a simple value or a sync iterable.
                             for res in ensure_iterable(results):
                                 yield res
+                                count += 1
                 else:
                     # Run sync functions in a thread to avoid blocking the event loop
                     results = await asyncio.to_thread(stage._invoke, context, item)
@@ -95,11 +108,16 @@ class AsyncioRunner(BaseRunner):
                     if inspect.isgenerator(results):
                         for res in results:
                             yield res
+                            count += 1
                     else:
                         for res in ensure_iterable(results):
                             yield res
+                            count += 1
+
+                stage.logger.debug(f"Successfully processed item, produced {count} output item(s).")
 
             except Exception as e:
+                stage.logger.warning(f"Error processing item: {e}", exc_info=True)
                 # Proper error handling with policies would go here.
                 # For now, we re-raise.
                 raise e

@@ -20,6 +20,33 @@ _runner_registry: Dict[str, Type[BaseRunner]] = {
 }
 
 
+def register_backend(name: str, runner_class: Type[BaseRunner]):
+    """
+    Registers a new backend runner.
+
+    This allows extending LijnDing with custom execution backends. The provided
+    class must be a subclass of `BaseRunner`.
+
+    Args:
+        name: The name for the new backend (e.g., 'my_custom_runner').
+        runner_class: The runner class to associate with the name.
+
+    Raises:
+        TypeError: If the provided class is not a subclass of BaseRunner.
+        ValueError: If a backend with the same name is already registered.
+    """
+    from .base import BaseRunner
+    if not issubclass(runner_class, BaseRunner):
+        raise TypeError("The provided runner must be a subclass of BaseRunner.")
+
+    if name in _runner_registry:
+        # For now, we don't allow overwriting built-in backends.
+        # This could be changed to include a `force=True` parameter if needed.
+        raise ValueError(f"Backend '{name}' is already registered.")
+
+    _runner_registry[name] = runner_class
+
+
 class MissingBackendError(Exception):
     """Raised when a requested backend is not registered."""
     pass

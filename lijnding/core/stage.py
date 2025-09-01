@@ -33,6 +33,7 @@ class Stage:
     ):
         self.func = func
         self.name = name or getattr(func, "__name__", "Stage")
+        self.logger = get_logger(f"lijnding.stage.{self.name}")
         self.stage_type = stage_type
         self.backend = backend
         self.workers = workers
@@ -64,12 +65,23 @@ class Stage:
         return Pipeline([self]) | other
 
     def _invoke(self, context: Context, *args: Any, **kwargs: Any) -> Any:
-        if self.stage_type == "source":
-            return self.func(context) if self._inject_context else self.func()
-
         if self._inject_context:
-            return self.func(context, *args, **kwargs)
-        return self.func(*args, **kwargs)
+            # Temporarily attach the stage-specific logger to the context
+            # for the duration of this call.
+            original_logger = context.logger
+            context.logger = self.logger
+            try:
+                if self.stage_type == "source":
+                    return self.func(context)
+                return self.func(context, *args, **kwargs)
+            finally:
+                # Restore the original logger to avoid side effects
+                context.logger = original_logger
+        else:
+            # Context is not injected, so just call the function
+            if self.stage_type == "source":
+                return self.func()
+            return self.func(*args, **kwargs)
 
 
 def stage(
