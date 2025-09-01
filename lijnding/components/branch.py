@@ -55,15 +55,17 @@ class Branch:
 
         if is_async_branch:
             @stage(name=f"Branch(merge='{self.merge}')", stage_type="itemwise")
-            async def _branch_func_async(context: "Context", item: Any) -> AsyncIterator[Any]:
-                branch_iterators = [
+            async def _branch_func_async(context: "Context", item: Any) -> List[Any]:
+                branch_streams = [
                     (await branch.run_async([item]))[0] for branch in self.branches
                 ]
 
                 if self.merge == "concat":
-                    for it in branch_iterators:
-                        async for res in it:
-                            yield res
+                    results = []
+                    for stream in branch_streams:
+                        async for res in stream:
+                            results.append(res)
+                    return results
                 elif self.merge == "zip":
                     raise NotImplementedError("Async zip merge strategy is not yet implemented.")
                 elif self.merge == "zip_longest":
