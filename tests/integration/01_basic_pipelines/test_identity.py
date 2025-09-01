@@ -1,6 +1,6 @@
 import pytest
 from lijnding import Pipeline, stage
-from tests.helpers.test_runner import run_pipeline, BACKENDS
+from ...helpers.test_runner import run_pipeline, BACKENDS
 
 
 @pytest.mark.parametrize("backend", BACKENDS)
