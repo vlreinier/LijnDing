@@ -1,6 +1,6 @@
 import pytest
 from lijnding import Pipeline, stage
-from tests.utils.test_runner import run_pipeline
+from tests.helpers.test_runner import run_pipeline
 
 
 @pytest.mark.parametrize("backend", ["serial", "thread", "async"])
