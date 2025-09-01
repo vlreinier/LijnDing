@@ -18,10 +18,11 @@ class Context:
             return
 
         self._mp_safe = mp_safe
+        self._manager = None
         if mp_safe:
-            manager = mp.Manager()
-            self._data = manager.dict()
-            self._lock = manager.RLock()
+            self._manager = mp.Manager()
+            self._data = self._manager.dict()
+            self._lock = self._manager.RLock()
         else:
             self._data: Dict[str, Any] = {}
             self._lock = threading.RLock()
