@@ -122,14 +122,10 @@ class Pipeline:
 
         if is_async_pipeline:
             @stage(name=pipeline_name, stage_type="itemwise")
-            async def _pipeline_as_stage_func_async(context: Context, item: Any) -> Any:
+            async def _pipeline_as_stage_func_async(context: Context, item: Any) -> AsyncIterator[Any]:
                 stream, _ = await self.run_async(data=[item])
-                results = [i async for i in stream]
-                # An itemwise pipeline stage should produce one result per input item.
-                if len(results) == 1:
-                    return results[0]
-                # If it produced more, return the list. If it produced none, return None.
-                return results if results else None
+                async for inner_item in stream:
+                    yield inner_item
             return _pipeline_as_stage_func_async
         else:
             @stage(name=pipeline_name, stage_type="itemwise")

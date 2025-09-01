@@ -52,7 +52,7 @@ class Context:
             current_value = self._data.get(key, 0)
             new_value = int(current_value) + amount
             self._data[key] = new_value
-            return int(current_value)
+            return new_value
 
     def __repr__(self) -> str:
         return f"Context(mp_safe={self._mp_safe}, data={self.to_dict()})"

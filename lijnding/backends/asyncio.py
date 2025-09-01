@@ -69,10 +69,8 @@ class AsyncioRunner(BaseRunner):
                         async for res in result_obj:
                             yield res
                     else: # It's a coroutine
-                        results = await result_obj
-                        from ..core.utils import ensure_iterable
-                        for res in ensure_iterable(results):
-                            yield res
+                        res = await result_obj
+                        yield res
                 else:
                     # Run sync functions in a thread to avoid blocking the event loop
                     results = await asyncio.to_thread(stage._invoke, context, item)
