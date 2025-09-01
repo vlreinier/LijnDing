@@ -1,9 +1,10 @@
 import pytest
 
-# Conditionally import aiohttp and skip tests if it's not installed.
-# This is the standard way to handle optional dependencies in tests.
-aiohttp = pytest.importorskip("aiohttp", reason="aiohttp not installed, skipping http component tests")
-web = aiohttp.web
+# Conditionally skip these tests if aiohttp is not installed.
+pytest.importorskip("aiohttp", reason="aiohttp not installed, skipping http component tests")
+
+# If the import above succeeds, we can safely import the sub-modules.
+from aiohttp import web
 
 
 from lijnding import Pipeline
