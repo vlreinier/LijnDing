@@ -29,11 +29,3 @@ def test_source_validation():
     with pytest.raises(TypeError, match="Cannot pipe from one 'source' stage to another."):
         _ = simple_source | simple_source
 
-@pytest.mark.skip(reason="ProcessingRunner is unstable and has been disabled.")
-@pytest.mark.skip(reason="ProcessingRunner is unstable and has been disabled.")
-def test_source_with_processing_backend():
-    """Tests a source stage with the multiprocessing backend."""
-
-    # This test is disabled because the functions it depends on are part of the
-    # unstable processing backend tests.
-    pass
