@@ -17,14 +17,6 @@ from .errors import ErrorPolicy
 from .hooks import Hooks
 
 
-def _ensure_iterable(x: Any) -> Iterable[Any]:
-    if x is None:
-        return []
-    if hasattr(x, "__iter__") and not isinstance(x, (str, bytes, dict)):
-        return x
-    return [x]
-
-
 class Stage:
     def __init__(
         self,
@@ -90,14 +82,9 @@ def stage(
     output_type: Optional[Type[Any]] = None,
     error_policy: Optional[ErrorPolicy] = None,
     hooks: Optional[Hooks] = None,
-    register_for_processing: bool = False,
 ) -> Union[Stage, Callable[[Callable[..., Any]], Stage]]:
-    from ..backends.function_registry import register_function
 
     def wrapper(func: Callable[..., Any]) -> Stage:
-        if register_for_processing:
-            register_function(func, name=name)
-
         return Stage(
             func,
             name=name,
