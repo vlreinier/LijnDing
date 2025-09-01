@@ -49,7 +49,8 @@ class Context:
 
     def inc(self, key: str, amount: int = 1) -> int:
         with self._lock:
-            new_value = int(self.get(key, 0)) + amount
+            current_value = self._data.get(key, 0)
+            new_value = int(current_value) + amount
             self._data[key] = new_value
             return new_value
 

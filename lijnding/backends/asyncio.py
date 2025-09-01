@@ -63,8 +63,11 @@ class AsyncioRunner(BaseRunner):
             try:
                 if stage.is_async:
                     results = await stage._invoke(context, item)
+                    # If the result is an async iterator (e.g. from a nested pipeline),
+                    # we must fully consume it before yielding its items.
                     if hasattr(results, '__aiter__'):
-                        async for res in results:
+                        inner_results = [res async for res in results]
+                        for res in inner_results:
                             yield res
                     else:
                         yield results
