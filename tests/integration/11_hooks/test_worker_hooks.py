@@ -107,9 +107,13 @@ def test_processing_hook_with_unserializable_state_fails():
     Tests that the 'process' backend fails to serialize a stage
     if the hook captures unserializable state. This confirms the limitation.
     """
-    workers = 2
-    state_manager = UnserializableState("test_worker")
-    hooks = Hooks(on_worker_init=state_manager.init) # Just init is enough to fail
+    with mp.Manager() as manager:
+        # We need a queue to instantiate UnserializableState, even though the test
+        # should fail before the queue is ever used.
+        dummy_queue = manager.Queue()
+        workers = 2
+        state_manager = UnserializableState("test_worker", dummy_queue)
+        hooks = Hooks(on_worker_init=state_manager.init) # Just init is enough to fail
 
     @stage(backend="process", workers=workers, hooks=hooks)
     def a_stage(item: int):
