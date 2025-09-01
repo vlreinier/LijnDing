@@ -22,10 +22,10 @@ class Context:
         if mp_safe:
             self._manager = mp.Manager()
             self._data = self._manager.dict()
-            self._lock = self._manager.RLock()
+            self._lock = self._manager.Lock()
         else:
             self._data: Dict[str, Any] = {}
-            self._lock = threading.RLock()
+            self._lock = threading.Lock()
 
         if initial_data:
             self.update(initial_data)

@@ -62,15 +62,15 @@ class AsyncioRunner(BaseRunner):
         async for item in iterable:
             try:
                 if stage.is_async:
-                    results = await stage._invoke(context, item)
-                    # If the result is an async iterator (e.g. from a nested pipeline),
-                    # we must fully consume it before yielding its items.
-                    if hasattr(results, '__aiter__'):
-                        inner_results = [res async for res in results]
-                        for res in inner_results:
+                    # result_obj could be a coroutine or an async generator
+                    result_obj = stage._invoke(context, item)
+
+                    if hasattr(result_obj, '__aiter__'): # It's an async generator
+                        async for res in result_obj:
                             yield res
-                    else:
-                        yield results
+                    else: # It's a coroutine
+                        res = await result_obj
+                        yield res
                 else:
                     # Run sync functions in a thread to avoid blocking the event loop
                     results = await asyncio.to_thread(stage._invoke, context, item)
