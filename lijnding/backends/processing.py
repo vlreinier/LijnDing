@@ -27,6 +27,7 @@ def _worker_process(
     while True:
         task = q_in.get()
         if task == SENTINEL:
+            q_out.put(SENTINEL)
             break
 
         try:
@@ -83,21 +84,28 @@ class ProcessingRunner(BaseRunner):
         for p in processes:
             p.start()
 
-        item_count = 0
+        # Feeder logic: put all items and then one sentinel per worker onto the queue
         for item in iterable:
-            item_count += 1
             task = (stage_payload, item, context_proxies)
             q_in.put(task)
 
-        # Send a sentinel for each worker to signal the end of work
         for _ in range(workers):
             q_in.put(SENTINEL)
 
-        # Collect results
-        for _ in range(item_count):
+        # Collector logic: read from the output queue until we've received a sentinel
+        # from each worker.
+        finished_workers = 0
+        while finished_workers < workers:
             result = q_out.get()
+
+            if result == SENTINEL:
+                finished_workers += 1
+                continue
+
             if isinstance(result, Exception):
+                # The worker encountered an error, re-raise it in the main process
                 raise result
+
             yield result
 
         # Clean up processes
