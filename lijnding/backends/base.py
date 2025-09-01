@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import time
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Iterable, Iterator
@@ -25,6 +26,14 @@ class BaseRunner(ABC):
         Executes the stage. This is the main entry point for a runner.
         It delegates to the appropriate method based on the stage type.
         """
+        # This is a synchronous runner. If a coroutine function was passed,
+        # it's a user error. They should be using the 'async' backend.
+        if inspect.iscoroutinefunction(stage.func):
+            raise TypeError(
+                f"Stage '{stage.name}' received an async function but is not using the 'async' backend. "
+                "Please add `backend='async'` to your @stage decorator."
+            )
+
         if stage.stage_type == "source":
             # Source stages ignore the input iterable and generate their own data.
             return ensure_iterable(stage._invoke(context))

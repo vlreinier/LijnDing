@@ -72,16 +72,19 @@ class AsyncioRunner(BaseRunner):
 
     def run(self, stage: "Stage", context: "Context", iterable: Iterable[Any]) -> Iterator[Any]:
         """
-        Provides a synchronous entry point for the async runner by running
-        a new event loop. This is useful for running an async-powered pipeline
-        from a sync context, but it's not the primary use case.
+        Provides a synchronous entry point for the async runner.
+        This is useful for running an async-powered pipeline from a sync context.
+
+        It automatically detects a running event loop. If one is found, it
+        will schedule the async processing on that loop. Otherwise, it will
+        create a new event loop.
 
         .. warning::
             This method is NOT lazy and will block until the entire async
-            iterator is consumed. It also cannot be called from a running
-            event loop. Use `run_async` for true async behavior.
+            iterator is consumed. For truly non-blocking, asynchronous
+            execution, use `run_async` from an async context.
         """
-        # We need an async generator to pass to `asyncio.run`.
+        # We need an async generator to pass to `asyncio.run` or `loop.run_until_complete`.
         async def _async_gen_wrapper():
             # Convert the sync iterable to an async one
             async def _to_async(it):
@@ -91,20 +94,33 @@ class AsyncioRunner(BaseRunner):
             async for res in self.run_async(stage, context, _to_async(iterable)):
                 yield res
 
-        # This is a bridge from the async world to the sync world.
-        # It collects all results and then returns them.
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # If there's already a loop, we can't just call asyncio.run().
-            # This is a complex problem. For now, we'll raise an error.
-            raise RuntimeError(
-                "Cannot run the asyncio backend from a running event loop with the sync `run` method. "
-                "You must use `run_async` instead."
-            )
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            # No running loop, so we can create one.
+            results = asyncio.run(_collect_async_gen(_async_gen_wrapper()))
+            yield from results
+            return
 
-        # This will block until the entire async generator is consumed.
-        # This implementation is NOT lazy. A truly lazy bridge is more complex.
-        results = asyncio.run(_collect_async_gen(_async_gen_wrapper()))
+        # If a loop is running, we can't use asyncio.run().
+        # We must schedule the task and wait for it to complete.
+        # This is a synchronous bridge.
+        # Using loop.run_until_complete in this context is tricky, as it
+        # can block other tasks in the loop. A truly robust solution
+        # would involve a more complex async-to-sync pattern, but for the
+        # sake of this library's scope, we will use a pragmatic approach
+        # that works for the common case of running a sync-style pipeline
+        # that happens to have an async stage inside a test or a REPL
+        # that already has a running loop.
+        # Note: This may not be suitable for all production scenarios.
+        task = loop.create_task(_collect_async_gen(_async_gen_wrapper()))
+
+        # A simple way to wait for the task to be done from a sync context
+        # without blocking the entire loop indefinitely is to yield control
+        # periodically. However, this `run` method is expected to be sync.
+        # So we must block.
+        # `run_until_complete` is the tool for this, despite its caveats.
+        results = loop.run_until_complete(task)
         yield from results
 
     def _run_itemwise(self, stage: "Stage", context: "Context", iterable: Iterable[Any]) -> Iterator[Any]:

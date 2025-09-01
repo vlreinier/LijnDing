@@ -12,25 +12,22 @@ if TYPE_CHECKING:
 
 SENTINEL = object()
 
-def _worker_process(
-    q_in: mp.Queue,
-    q_out: mp.Queue,
-):
+def _worker_process(args):
     """
     A long-running worker process that waits for tasks on the input queue.
     """
+    q_in, q_out, stage_payload, context_proxies = args
     from ..core.context import Context
     from ..core.utils import ensure_iterable
 
+    stage_func, inject_context = serializer.loads(stage_payload)
+
     while True:
-        task = q_in.get()
-        if task is SENTINEL:
+        item = q_in.get()
+        if item is SENTINEL:
             break
 
         try:
-            stage_payload, item, context_proxies = task
-            stage_func, inject_context = serializer.loads(stage_payload)
-
             worker_context = None
             if context_proxies:
                 worker_context = Context(_from_proxies=context_proxies)
@@ -67,11 +64,12 @@ class ProcessingRunner(BaseRunner):
 
         context_proxies = (context._data, context._lock) if getattr(context, "_mp_safe", False) else None
 
-        # Serialize the function once, to be sent with each task
+        # Serialize the function once, to be sent to all workers
         stage_payload = serializer.dumps((stage.func, stage._inject_context))
 
+        worker_args = (q_in, q_out, stage_payload, context_proxies)
         processes = [
-            mp.Process(target=_worker_process, args=(q_in, q_out), daemon=True)
+            mp.Process(target=_worker_process, args=(worker_args,), daemon=True)
             for _ in range(workers)
         ]
         for p in processes:
@@ -80,8 +78,7 @@ class ProcessingRunner(BaseRunner):
         item_count = 0
         for item in iterable:
             item_count += 1
-            task = (stage_payload, item, context_proxies)
-            q_in.put(task)
+            q_in.put(item)
 
         # Send a sentinel for each worker to signal the end of work
         for _ in range(workers):
