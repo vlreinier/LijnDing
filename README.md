@@ -92,14 +92,23 @@ Some components require extra dependencies. You can install them as needed:
 
 ## Development
 
-To set up a development environment and run the tests, install the test dependencies and run `pytest`.
+To set up the project for development, it's recommended to create a virtual environment and install the package in editable mode with its test dependencies.
 
 ```bash
-# Install test dependencies (includes http dependencies)
-pip install .[test]
+# Create and activate a virtual environment (e.g., using venv)
+python -m venv .venv
+source .venv/bin/activate  # On Windows, use `.venv\Scripts\activate`
 
-# Run the test suite
-pytest
+# Install the project in editable mode with test dependencies
+pip install -e .[test]
+```
+
+### Running Tests
+
+To run the test suite, use `pytest`:
+
+```bash
+python -m pytest
 ```
 
 ## Creating Custom Components
