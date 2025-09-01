@@ -27,3 +27,6 @@ test = [
     "pytest-asyncio",
     "dill",
 ]
+
+[tool.pytest.ini_options]
+pythonpath = "."

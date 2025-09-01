@@ -1,7 +1,7 @@
 import pytest
 import time
 from lijnding import Pipeline, stage
-from ...helpers.test_runner import run_pipeline
+from tests.helpers.test_runner import run_pipeline
 
 # Backpressure is only relevant for concurrent backends.
 CONCURRENT_BACKENDS = ["thread", "process", "async"]

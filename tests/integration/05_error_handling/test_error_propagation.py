@@ -1,6 +1,6 @@
 import pytest
 from lijnding import Pipeline, stage
-from ...helpers.test_runner import run_pipeline, BACKENDS
+from tests.helpers.test_runner import run_pipeline, BACKENDS
 
 
 def top_level_raiser(x):
