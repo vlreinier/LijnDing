@@ -19,8 +19,9 @@ def test_read_write_file(tmp_path):
 
     pipeline = read_from_file(str(input_file)) | to_upper | write_to_file(str(output_file))
 
-    # Run the pipeline (no results expected as it's a terminal stage)
-    pipeline.run([])
+    # Run the pipeline and collect the (empty) results to ensure it executes completely.
+    results, _ = pipeline.collect([])
+    assert not results # write_to_file is a terminal stage
 
     # Verify the output file content
     content = output_file.read_text().strip().split("\n")
@@ -71,7 +72,9 @@ def test_resume_from_checkpoint(tmp_path):
         | write_to_file(str(output_file))
     )
 
-    resume_pipeline.run([])
+    # Run the pipeline and collect the (empty) results to ensure it executes
+    results, _ = resume_pipeline.collect([])
+    assert not results
 
     content = output_file.read_text().strip().split("\n")
     assert content == ["apple-processed", "banana-processed", "cherry-processed"]

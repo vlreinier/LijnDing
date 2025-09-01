@@ -3,7 +3,7 @@
 # that perform common tasks like batching, branching, and mapping.
 
 from .batch import batch
-from .branch import Branch
+from .branch import branch
 from .map import map_values
 from .reduce import reduce
 from .split import split

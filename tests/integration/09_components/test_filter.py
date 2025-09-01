@@ -26,7 +26,7 @@ def test_filter_empty_input():
     """
     Tests that the filter_ component handles empty input correctly.
     """
-    pipeline = filter_(is_even)
+    pipeline = Pipeline([filter_(is_even)])
     results, _ = pipeline.collect([])
     assert results == []
 
@@ -34,6 +34,6 @@ def test_filter_no_matches():
     """
     Tests that the filter_ component works correctly when no items match.
     """
-    pipeline = filter_(lambda x: x > 10)
+    pipeline = Pipeline([filter_(lambda x: x > 10)])
     results, _ = pipeline.collect(list(range(5)))
     assert results == []

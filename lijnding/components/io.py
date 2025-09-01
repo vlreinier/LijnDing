@@ -3,7 +3,7 @@ from typing import Generator, Any, Iterable
 from ..core.stage import stage, Stage
 
 
-def read_from_file(filepath: str, *, name: str = "read_from_file") -> Stage:
+def read_from_file(filepath: str, *, name: str = "read_from_file", **stage_kwargs) -> Stage:
     """
     Creates a source stage that reads a file and yields each line.
 
@@ -12,9 +12,10 @@ def read_from_file(filepath: str, *, name: str = "read_from_file") -> Stage:
 
     :param filepath: The path to the file to be read.
     :param name: An optional name for the stage.
+    :param stage_kwargs: Additional keyword arguments to pass to the @stage decorator.
     :return: A new source `Stage` that yields lines from the file.
     """
-    @stage(name=name, stage_type="source")
+    @stage(name=name, stage_type="source", **stage_kwargs)
     def _read_from_file_stage() -> Generator[str, None, None]:
         """The actual stage function that reads the file."""
         with open(filepath, 'r', encoding='utf-8') as f:
@@ -24,7 +25,7 @@ def read_from_file(filepath: str, *, name: str = "read_from_file") -> Stage:
     return _read_from_file_stage
 
 
-def write_to_file(filepath: str, *, name: str = "write_to_file", end_of_line: str = "\n") -> Stage:
+def write_to_file(filepath: str, *, name: str = "write_to_file", end_of_line: str = "\n", **stage_kwargs) -> Stage:
     """
     Creates a terminal stage that writes all incoming items to a file.
 
@@ -34,11 +35,12 @@ def write_to_file(filepath: str, *, name: str = "write_to_file", end_of_line: st
     :param filepath: The path to the file to be written.
     :param name: An optional name for the stage.
     :param end_of_line: The character(s) to write after each item.
+    :param stage_kwargs: Additional keyword arguments to pass to the @stage decorator.
     :return: A new `Stage` that writes items to the file.
     """
     # This stage is an aggregator because it needs to control the file resource
     # over the entire stream of items.
-    @stage(name=name, stage_type="aggregator")
+    @stage(name=name, stage_type="aggregator", **stage_kwargs)
     def _write_to_file_stage(items: Iterable[Any]) -> None:
         """The actual stage function that writes to the file."""
         with open(filepath, 'w', encoding='utf-8') as f:
@@ -48,7 +50,7 @@ def write_to_file(filepath: str, *, name: str = "write_to_file", end_of_line: st
     return _write_to_file_stage
 
 
-def save_progress(filepath: str, *, name: str = "save_progress", end_of_line: str = "\n") -> Stage:
+def save_progress(filepath: str, *, name: str = "save_progress", end_of_line: str = "\n", **stage_kwargs) -> Stage:
     """
     Creates a pass-through stage that writes each incoming item to a file
     and then yields the item downstream. This is useful for checkpointing.
@@ -59,9 +61,10 @@ def save_progress(filepath: str, *, name: str = "save_progress", end_of_line: st
     :param filepath: The path to the checkpoint file. The file will be appended to.
     :param name: An optional name for the stage.
     :param end_of_line: The character(s) to write after each item.
+    :param stage_kwargs: Additional keyword arguments to pass to the @stage decorator.
     :return: A new `Stage` that saves progress and passes items through.
     """
-    @stage(name=name, stage_type="aggregator")
+    @stage(name=name, stage_type="aggregator", **stage_kwargs)
     def _save_progress_stage(items: Iterable[Any]) -> Generator[Any, None, None]:
         """The actual stage function that writes to the file and yields."""
         with open(filepath, 'a', encoding='utf-8') as f:
