@@ -1,4 +1,5 @@
 import pytest
+import pytest_asyncio
 
 # Conditionally skip these tests if aiohttp is not installed.
 pytest.importorskip("aiohttp", reason="aiohttp not installed, skipping http component tests")
@@ -10,7 +11,7 @@ from aiohttp import web
 from lijnding import Pipeline
 from lijnding.components import http_request
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def test_server(aiohttp_server):
     """A pytest fixture to create a simple test server."""
     async def handler(request):
@@ -30,9 +31,9 @@ async def test_http_request_component(test_server):
     data = ["jules", "ada", "grace"]
 
     # A pipeline that takes a name, builds a URL, and makes a request
-    pipeline: Pipeline = http_request(
+    pipeline = Pipeline([http_request(
         url_builder=lambda name: f"{server_url}/greet/{name}"
-    )
+    )])
 
     # We need to use run_async and collect the results
     stream, _ = await pipeline.run_async(data)
@@ -48,7 +49,7 @@ async def test_http_request_error_handling(test_server):
     """
     server_url = f"http://{test_server.host}:{test_server.port}"
 
-    pipeline = http_request(lambda _: f"{server_url}/not_found")
+    pipeline = Pipeline([http_request(lambda _: f"{server_url}/not_found")])
 
     from aiohttp import ClientResponseError
     with pytest.raises(ClientResponseError) as excinfo:
