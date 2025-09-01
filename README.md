@@ -70,3 +70,73 @@ results, _ = analysis_pipeline.collect(["hello", "lijnding"])
 # results will be: [('HELLO', 5), ('LIJNDING', 8)]
 #
 ```
+
+---
+
+## Installation
+
+To install the framework from source, clone the repository and run the following command in the project root:
+
+```bash
+pip install .
+```
+
+### Optional Dependencies
+
+Some components require extra dependencies. You can install them as needed:
+
+- **HTTP Component**: To use the `http_request` component, install the `[http]` extra:
+  ```bash
+  pip install .[http]
+  ```
+
+## Development
+
+To set up a development environment and run the tests, install the test dependencies and run `pytest`.
+
+```bash
+# Install test dependencies (includes http dependencies)
+pip install .[test]
+
+# Run the test suite
+pytest
+```
+
+## Creating Custom Components
+
+A component is a factory function that returns a configured `Stage`. This pattern allows you to create reusable, configurable pieces of your pipeline.
+
+Here is an example of a simple component that adds a prefix to a string:
+
+```python
+from typing import Generator
+from lijnding import stage, Stage, Pipeline
+
+def add_prefix(prefix: str, **stage_kwargs) -> Stage:
+    """
+    A component that adds a prefix to each incoming string.
+
+    :param prefix: The string prefix to add.
+    :param stage_kwargs: Allows passing arguments like `backend` to the stage.
+    :return: A configured Stage.
+    """
+    @stage(name=f"add_prefix_{prefix}", **stage_kwargs)
+    def _prefix_stage(item: str) -> Generator[str, None, None]:
+        yield f"{prefix}{item}"
+
+    return _prefix_stage
+
+# --- Usage ---
+
+# Create a configured instance of the component
+add_hello = add_prefix("Hello, ")
+
+# Use it in a pipeline
+pipeline = add_hello | stage(lambda s: s.upper())
+
+# Run the pipeline
+results, _ = pipeline.collect(["world", "Jules"])
+
+# results will be: ['HELLO, WORLD', 'HELLO, JULES']
+print(results)
+```
