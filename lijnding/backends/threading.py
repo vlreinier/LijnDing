@@ -41,43 +41,51 @@ class ThreadingRunner(BaseRunner):
             worker_context = copy.copy(context)
             worker_context.worker_state = {}
 
-            # Call the worker initialization hook if it exists
-            if stage.hooks.on_worker_init:
-                try:
-                    worker_context.worker_state = stage.hooks.on_worker_init(worker_context) or {}
-                except Exception as e:
-                    stage.logger.error(f"Error in on_worker_init: {e}", exc_info=True)
-                    # To prevent the worker from starting in a bad state, we send a sentinel
-                    # and an exception, then break.
-                    q_in.task_done()
-                    q_out.put(SENTINEL)
-                    q_out.put(e)
-                    return
+            try:
+                # Call the worker initialization hook if it exists
+                if stage.hooks.on_worker_init:
+                    try:
+                        worker_context.worker_state = stage.hooks.on_worker_init(worker_context) or {}
+                    except Exception as e:
+                        stage.logger.error(f"Error in on_worker_init: {e}", exc_info=True)
+                        q_out.put(e)  # Propagate error to main thread
+                        return # Terminate worker
 
-            while True:
-                item = q_in.get()
-                if item is SENTINEL:
-                    q_in.task_done()
-                    q_out.put(SENTINEL)
-                    break
+                while True:
+                    item = q_in.get()
+                    if item is SENTINEL:
+                        break
 
-                try:
-                    stage.metrics["items_in"] += 1
-                    results = stage._invoke(worker_context, item)
-                    output_stream = ensure_iterable(results)
+                    try:
+                        stage.metrics["items_in"] += 1
+                        results = stage._invoke(worker_context, item)
+                        output_stream = ensure_iterable(results)
 
-                    count = 0
-                    for res in output_stream:
-                        stage.metrics["items_out"] += 1
-                        count += 1
-                        q_out.put(res)
+                        count = 0
+                        for res in output_stream:
+                            stage.metrics["items_out"] += 1
+                            count += 1
+                            q_out.put(res)
 
-                    stage.logger.debug(f"Successfully processed item, produced {count} output item(s).")
-                except Exception as e:
-                    stage.logger.warning(f"Error processing item: {e}", exc_info=True)
-                    q_out.put(e)
-                finally:
-                    q_in.task_done()
+                        stage.logger.debug(f"Successfully processed item, produced {count} output item(s).")
+                    except Exception as e:
+                        stage.logger.warning(f"Error processing item: {e}", exc_info=True)
+                        q_out.put(e)
+                    finally:
+                        q_in.task_done()
+
+            finally:
+                # Signal that this worker is done processing items
+                q_in.task_done()
+                q_out.put(SENTINEL)
+
+                # Call the worker exit hook if it exists
+                if stage.hooks.on_worker_exit:
+                    try:
+                        stage.hooks.on_worker_exit(worker_context)
+                    except Exception as e:
+                        stage.logger.error(f"Error in on_worker_exit: {e}", exc_info=True)
+                        # We can't easily propagate this error, so we just log it.
 
         feeder_thread = threading.Thread(target=feeder, daemon=True)
         feeder_thread.start()

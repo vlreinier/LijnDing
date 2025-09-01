@@ -25,39 +25,51 @@ def _worker_process(
     stage = None
     worker_context = None
 
-    while True:
-        task = q_in.get()
-        if task == SENTINEL:
-            q_out.put(SENTINEL)
-            break
+    try:
+        while True:
+            task = q_in.get()
+            if task == SENTINEL:
+                break
 
-        try:
-            stage_payload, item, context_proxies = task
+            try:
+                stage_payload, item, context_proxies = task
 
-            # One-time initialization for the worker process
-            if stage is None:
-                stage = serializer.loads(stage_payload)
-                worker_context = Context(_from_proxies=context_proxies)
+                # One-time initialization for the worker process
+                if stage is None:
+                    stage = serializer.loads(stage_payload)
+                    worker_context = Context(_from_proxies=context_proxies)
 
-                # Call the worker initialization hook if it exists
-                if stage.hooks.on_worker_init:
-                    try:
-                        worker_context.worker_state = stage.hooks.on_worker_init(worker_context) or {}
-                    except Exception as e:
-                        # Propagate the error and terminate the worker
-                        q_out.put(e)
-                        break
+                    # Call the worker initialization hook if it exists
+                    if stage.hooks.on_worker_init:
+                        try:
+                            worker_context.worker_state = stage.hooks.on_worker_init(worker_context) or {}
+                        except Exception as e:
+                            # Propagate the error and terminate the worker
+                            q_out.put(e)
+                            break
 
-            # Invoke the stage logic. This will also handle the context.logger injection.
-            results = stage._invoke(worker_context, item)
+                # Invoke the stage logic. This will also handle the context.logger injection.
+                results = stage._invoke(worker_context, item)
 
-            for res in ensure_iterable(results):
-                q_out.put(res)
+                for res in ensure_iterable(results):
+                    q_out.put(res)
 
-        except Exception as e:
-            # Errors are caught and sent back to the main process to be handled
-            # by the pipeline's error policy.
-            q_out.put(e)
+            except Exception as e:
+                # Errors are caught and sent back to the main process to be handled
+                # by the pipeline's error policy.
+                q_out.put(e)
+    finally:
+        # Signal that this worker is done
+        q_out.put(SENTINEL)
+
+        # Call the worker exit hook if it exists
+        if stage and worker_context and stage.hooks.on_worker_exit:
+            try:
+                stage.hooks.on_worker_exit(worker_context)
+            except Exception:
+                # Cannot easily propagate this error, so we can't do much.
+                # A sophisticated logger could send this to a central service.
+                pass
 
 class ProcessingRunner(BaseRunner):
     """

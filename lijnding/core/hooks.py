@@ -20,8 +20,11 @@ class Hooks:
         on_error: Called when a stage encounters an exception while processing.
         on_worker_init: Called once per worker before it starts processing items.
                         It can return a dictionary to be stored in `context.worker_state`.
+        on_worker_exit: Called once per worker when it is about to terminate.
+                        Useful for cleaning up resources created in `on_worker_init`.
     """
     before_stage: Optional[Callable[["Stage", "Context", Any], None]] = None
     after_stage: Optional[Callable[["Stage", "Context", Any, Any, float], None]] = None
     on_error: Optional[Callable[["Stage", "Context", Any, BaseException, int], None]] = None
     on_worker_init: Optional[Callable[["Context"], Dict[str, Any]]] = None
+    on_worker_exit: Optional[Callable[["Context"], None]] = None
