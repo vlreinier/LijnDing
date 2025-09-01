@@ -98,7 +98,7 @@ class ProcessingRunner(BaseRunner):
         stage_payload = serializer.dumps(stage)
 
         processes = [
-            mp.Process(target=_worker_process, args=(q_in, q_out), daemon=True)
+            mp.Process(target=_worker_process, args=(q_in, q_out), daemon=False)
             for _ in range(workers)
         ]
         for p in processes:

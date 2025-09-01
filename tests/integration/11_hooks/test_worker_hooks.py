@@ -1,4 +1,5 @@
 import multiprocessing as mp
+import os
 import threading
 import time
 
@@ -18,10 +19,16 @@ def clear_queue():
 # --- Test Implementations ---
 
 def init_func(context: Context):
-    event_queue.put(f"init_{context.get('worker_id')}")
+    # Use a combination of PID and Thread ID for a unique worker identifier
+    worker_id = f"{os.getpid()}_{threading.get_ident()}"
+    # Store the unique ID in the worker-local state.
+    context.worker_state["id"] = worker_id
+    event_queue.put(f"init_{worker_id}")
 
 def exit_func(context: Context):
-    event_queue.put(f"exit_{context.get('worker_id')}")
+    # Retrieve the unique ID from the worker-local state.
+    worker_id = context.worker_state.get("id", "unknown")
+    event_queue.put(f"exit_{worker_id}")
 
 class UnserializableState:
     def __init__(self, worker_id):
@@ -51,9 +58,8 @@ def test_init_and_exit_hooks_are_called_once_per_worker(backend, workers):
 
     @stage(backend=backend, workers=workers, hooks=hooks)
     def simple_stage(context: Context, item: int):
-        # Assign a unique ID to the worker context for tracking
-        if not context.get("worker_id"):
-            context.set("worker_id", f"{backend}_{threading.get_ident()}")
+            # This stage function is just a passthrough. The main logic for the
+            # test is in the init and exit hooks.
         return item
 
     pipeline = Pipeline() | simple_stage
