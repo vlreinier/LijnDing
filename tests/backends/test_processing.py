@@ -5,8 +5,9 @@ def top_level_double(x):
     return x * 2
 
 def top_level_context_user(context: Context, x: int):
-    context.inc("counter")
-    return x + context.get("counter")
+    # This needs to be an atomic operation.
+    # The `inc` method returns the new value.
+    return x + context.inc("counter")
 
 def test_processing_backend_top_level_func():
     """Tests a named, top-level function."""
