@@ -1,16 +1,32 @@
 import pytest
-from lijnding import Pipeline, stage
+from lijnding import Pipeline, stage, Context
 
-def _a_func(x):
-    return x
+def top_level_double(x):
+    return x * 2
 
-@pytest.mark.skip(reason="ProcessingRunner is unstable and has been disabled.")
-def test_processing_backend_raises_not_implemented():
-    """
-    Tests that using the 'process' backend raises a NotImplementedError.
-    """
-    process_stage = stage(backend="process")(_a_func)
-    pipeline = Pipeline([process_stage])
+def top_level_context_user(context: Context, x: int):
+    context.inc("counter")
+    return x + context.get("counter")
 
-    with pytest.raises(NotImplementedError, match="unstable and disabled"):
-        pipeline.collect([1, 2, 3])
+def test_processing_backend_top_level_func():
+    """Tests a named, top-level function."""
+    double_stage = stage(top_level_double, backend="process", workers=2)
+    pipeline = Pipeline([double_stage])
+    results, _ = pipeline.collect(range(10))
+    assert sorted(results) == [i * 2 for i in range(10)]
+
+def test_processing_backend_lambda():
+    """Tests that a lambda function works with the process backend (requires dill)."""
+    lambda_stage = stage(lambda x: x * 2, backend="process", workers=2)
+    pipeline = Pipeline([lambda_stage])
+    results, _ = pipeline.collect([5, 6, 7])
+    assert sorted(results) == [10, 12, 14]
+
+def test_processing_backend_with_context():
+    """Tests that the shared context works across multiple processes."""
+    context_stage = stage(top_level_context_user, backend="process", workers=2)
+    pipeline = Pipeline([context_stage])
+    results, context = pipeline.collect(range(5))
+
+    assert context.get("counter") == 5
+    assert sorted(results) == [1, 3, 5, 7, 9]
