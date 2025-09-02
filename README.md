@@ -48,27 +48,79 @@ results, _ = shouting_pipeline.collect(["hello", "world"])
 #
 ```
 
-## Advanced Usage: Branching
+## Advanced Usage
 
-Use the `branch()` component to run multiple operations on the same data.
+### Branching
+
+The `branch` component is a powerful tool for creating complex, non-linear workflows. It allows you to send a single input item to multiple child branches, and then merges the results back into a single stream.
+
+**Key Concept**: Each item that enters a `branch` stage is passed to *all* of its child branches. The branches do not receive the output of the previous branch; they all receive the same input item.
+
+The `branch` component has two merge strategies:
+
+- `concat`: Flattens the results from all branches into a single list.
+- `zip`: Groups the results for each input item into a tuple.
+
+Here is an example that demonstrates both strategies:
 
 ```python
 from lijnding import stage, branch
 
 @stage
-def get_length(text: str):
-    return len(text)
+def to_upper(text: str): return text.upper()
 
-# This pipeline will create tuples containing the uppercase version
-# and the length for each input word.
-# The `branch` component is seamlessly integrated with the `|` operator.
-analysis_pipeline = branch(to_upper, get_length, merge="zip")
+@stage
+def get_length(text: str): return len(text)
 
-results, _ = analysis_pipeline.collect(["hello", "lijnding"])
+@stage
+def reverse_text(text: str): return text[::-1]
 
-#
-# results will be: [('HELLO', 5), ('LIJNDING', 8)]
-#
+data = ["hello", "world"]
+
+# Using 'zip' to create tuples of results
+zip_pipeline = branch(to_upper, get_length, reverse_text, merge="zip")
+results_zip, _ = zip_pipeline.collect(data)
+# results_zip is: [('HELLO', 5, 'olleh'), ('WORLD', 5, 'dlrow')]
+
+# Using 'concat' to create a flat list of results
+concat_pipeline = branch(to_upper, get_length, reverse_text, merge="concat")
+results_concat, _ = concat_pipeline.collect(data)
+# results_concat is: ['HELLO', 5, 'olleh', 'WORLD', 5, 'dlrow']
+```
+
+### Aggregators
+
+In a standard pipeline, stages process items one by one. However, some operations need to work on the entire stream of items at once. These are called **aggregator stages**.
+
+There are two main ways to use aggregators:
+
+1.  **Built-in Components**: The framework provides several pre-built aggregator components, such as `batch`, which groups items into lists, and `reduce`, which combines all items into a single result.
+
+2.  **The `@aggregator_stage` Decorator**: For custom logic, you can create your own aggregator stage by decorating a function with `@aggregator_stage`. This decorator modifies your function so that instead of receiving items one by one, it receives a single argument: an `Iterable` containing all items from the previous stage.
+
+Here is an example that uses both a built-in aggregator (`batch`) and a custom one (`process_batches`):
+
+```python
+from lijnding import stage, aggregator_stage, batch, reduce
+
+@stage
+def generate_numbers():
+    yield from range(10)
+
+# `process_batches` is a custom aggregator that calculates the sum of each batch
+@aggregator_stage
+def process_batches(batches):
+    for batch_list in batches:
+        yield sum(batch_list)
+
+# `reduce` is a built-in aggregator that sums the results from the previous stage
+reduce_stage = reduce(lambda a, b: a + b, initializer=0)
+
+# The pipeline generates numbers, batches them, sums each batch, and then sums the sums.
+pipeline = generate_numbers | batch(size=4) | process_batches | reduce_stage
+
+results, _ = pipeline.collect([])
+# results is: [45]
 ```
 
 ---
