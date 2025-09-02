@@ -22,29 +22,29 @@ class AsyncioRunner(BaseRunner):
     async def run_async(
         self, stage: "Stage", context: "Context", iterable: AsyncIterator[Any]
     ) -> AsyncIterator[Any]:
-        """
-        Asynchronously executes the stage.
-        """
-        stage.logger.info("Async stage run started.")
-        start_time = asyncio.get_running_loop().time()
+        """Asynchronously executes the stage with structured logging."""
+        if stage.stage_type == "source":
+            # Let the pipeline handle the 'source' case directly
+            results = stage._invoke(context)
+            output_stream = ensure_iterable(results)
+            if hasattr(output_stream, '__aiter__'):
+                async for res in output_stream:
+                    yield res
+            else:
+                for res in output_stream:
+                    yield res
 
-        try:
-            if stage.stage_type == "source":
-                # Source stages ignore the input iterable and generate their own data.
-                results = stage._invoke(context)
-                output_stream = ensure_iterable(results)
-                if hasattr(output_stream, '__aiter__'):
-                    async for res in output_stream:
-                        yield res
-                else:
-                    for res in output_stream:
-                        yield res
-                return
+        elif stage.stage_type == "aggregator":
+            # This is a simplified aggregator for async. A more robust implementation
+            # would use the base class's _run_aggregator and adapt it for async.
+            stage.logger.info("aggregator_started", backend="asyncio")
+            start_time = asyncio.get_running_loop().time()
 
-            if stage.stage_type == "aggregator":
-                # We need to collect all items from the async iterator first.
-                items = [item async for item in iterable]
-                # Then run the aggregator logic.
+            items = [item async for item in iterable]
+            items_in = len(items)
+            items_out = 0
+
+            try:
                 if stage.is_async:
                     results = await stage._invoke(context, items)
                 else:
@@ -52,84 +52,89 @@ class AsyncioRunner(BaseRunner):
 
                 output_stream = ensure_iterable(results)
                 for res in output_stream:
+                    items_out += 1
                     yield res
-            else:
-                # Itemwise processing
-                async for res in self._run_itemwise_async(stage, context, iterable):
-                    yield res
-        finally:
-            end_time = asyncio.get_running_loop().time()
-            total_time = end_time - start_time
-            stage.logger.info(f"Async stage run finished in {total_time:.4f} seconds. Metrics: {stage.metrics}")
+            finally:
+                duration = asyncio.get_running_loop().time() - start_time
+                stage.logger.info(
+                    "aggregator_finished",
+                    items_in=items_in,
+                    items_out=items_out,
+                    duration=round(duration, 4),
+                )
+        else:
+            # Itemwise processing delegates to the async itemwise runner
+            async for res in self._run_itemwise_async(stage, context, iterable):
+                yield res
 
     async def _run_itemwise_async(
         self, stage: "Stage", context: "Context", iterable: AsyncIterator[Any]
     ) -> AsyncIterator[Any]:
-        """
-        Processes items concurrently using asyncio.
-        This method contains the core logic for unwrapping nested components
-        like Pipelines and Branches, which may return generators.
-        """
-        async for item in iterable:
-            try:
-                count = 0
-                if stage.is_async:
-                    # result_obj could be a coroutine or an async generator
-                    result_obj = stage._invoke(context, item)
+        """Processes items concurrently using asyncio, with structured logging."""
+        stage.logger.info("stream_started", backend="asyncio")
+        stream_start_time = asyncio.get_running_loop().time()
+        total_items_in = 0
+        total_items_out = 0
 
-                    if inspect.isasyncgen(result_obj):
-                        # The stage returned an async generator. We iterate through it.
-                        async for res in result_obj:
-                            yield res
-                            count += 1
-                    else:
-                        # The stage returned a coroutine. We await it.
-                        results = await result_obj
+        try:
+            async for item in iterable:
+                total_items_in += 1
+                stage.metrics["items_in"] += 1
+                item_start_time = asyncio.get_running_loop().time()
 
-                        # The awaited result could be another generator.
-                        if inspect.isasyncgen(results):
-                            async for res in results:
+                try:
+                    count_out = 0
+                    if stage.is_async:
+                        result_obj = stage._invoke(context, item)
+                        if inspect.isasyncgen(result_obj):
+                            async for res in result_obj:
                                 yield res
-                                count += 1
-                        elif inspect.isgenerator(results):
-                            for res in results:
-                                yield res
-                                count += 1
-                        else:
-                            # The result is a simple value or a sync iterable.
+                                count_out += 1
+                        else: # Coroutine
+                            results = await result_obj
                             for res in ensure_iterable(results):
                                 yield res
-                                count += 1
-                else:
-                    # Run sync functions in a thread to avoid blocking the event loop
-                    results = await asyncio.to_thread(stage._invoke, context, item)
-
-                    # The result of the sync function could be a generator (e.g., nested sync pipeline)
-                    if inspect.isgenerator(results):
-                        for res in results:
-                            yield res
-                            count += 1
-                    else:
+                                count_out += 1
+                    else:  # Sync function
+                        results = await asyncio.to_thread(stage._invoke, context, item)
                         for res in ensure_iterable(results):
                             yield res
-                            count += 1
+                            count_out += 1
 
-                stage.logger.debug(f"Successfully processed item, produced {count} output item(s).")
+                    stage.metrics["items_out"] += count_out
+                    total_items_out += count_out
+                    item_elapsed = asyncio.get_running_loop().time() - item_start_time
+                    stage.logger.debug(
+                        "item_processed",
+                        item_in=total_items_in,
+                        items_out=count_out,
+                        duration=round(item_elapsed, 4),
+                    )
 
-            except Exception as e:
-                stage.logger.warning(f"Error processing item: {e}", exc_info=True)
-                stage.metrics["errors"] += 1
+                except Exception as e:
+                    stage.metrics["errors"] += 1
+                    item_elapsed = asyncio.get_running_loop().time() - item_start_time
+                    stage.logger.warning(
+                        "item_error",
+                        item_in=total_items_in,
+                        error=str(e),
+                        duration=round(item_elapsed, 4),
+                    )
 
-                # TODO: Implement full error policies (e.g., retry) for async.
-                policy = stage.error_policy
-                if policy.mode == "route_to_stage":
-                    await _handle_error_routing_async(stage, context, item)
-                elif policy.mode == "skip":
-                    # Do nothing, just move to the next item
-                    pass
-                else:
-                    # Default 'fail' policy
-                    raise e
+                    policy = stage.error_policy
+                    if policy.mode == "route_to_stage":
+                        await _handle_error_routing_async(stage, context, item)
+                    elif policy.mode != "skip":
+                        raise e # Fail by default
+        finally:
+            total_duration = asyncio.get_running_loop().time() - stream_start_time
+            stage.logger.info(
+                "stream_finished",
+                items_in=total_items_in,
+                items_out=total_items_out,
+                errors=stage.metrics["errors"],
+                duration=round(total_duration, 4),
+            )
 
     def run(self, stage: "Stage", context: "Context", iterable: Iterable[Any]) -> Iterator[Any]:
         """

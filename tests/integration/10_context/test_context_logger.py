@@ -1,77 +1,92 @@
 import logging
 import pytest
-from logging.handlers import BufferingHandler
+import json
+from logging import LogRecord
 
 from lijnding import Pipeline, stage, Context
 from tests.helpers.test_runner import run_pipeline, BACKENDS
 
-class MemoryHandler(BufferingHandler):
+class MemoryHandler(logging.Handler):
     """A logging handler that stores records in memory."""
-    def __init__(self, capacity):
-        super().__init__(capacity)
+    def __init__(self):
+        super().__init__()
+        self.records = []
         self.buffer = []
 
-    def shouldFlush(self, record):
-        return False # Never flush automatically
-
-    def emit(self, record):
-        self.buffer.append(self.format(record))
+    def emit(self, record: LogRecord):
+        self.records.append(record)
+        self.buffer.append(record.getMessage())
 
 @pytest.fixture
 def memory_handler():
-    """A fixture that provides a memory handler and attaches it to the root logger."""
-    handler = MemoryHandler(capacity=100)
-    formatter = logging.Formatter('%(name)s:%(levelname)s:%(message)s')
-    handler.setFormatter(formatter)
+    """
+    A fixture that provides a memory handler and attaches it to the root logger
+    for capturing raw log records.
+    """
+    # This import is here to ensure structlog is configured before we add our handler
+    from lijnding.core.log import get_logger
 
-    root_logger = logging.getLogger("lijnding")
-    root_logger.addHandler(handler)
-    original_level = root_logger.level
-    root_logger.setLevel(logging.DEBUG)
+    handler = MemoryHandler()
+
+    # Attach to the root logger used by structlog's default PrintLoggerFactory
+    logger = logging.getLogger()
+
+    original_handlers = logger.handlers[:]
+    logger.handlers = [handler]  # Replace handlers to exclusively capture output
 
     yield handler
 
     # Teardown
-    root_logger.removeHandler(handler)
-    root_logger.setLevel(original_level)
+    logger.handlers = original_handlers
 
-@stage(name="test_logger_stage")
-def logger_stage(context: Context, item: str):
-    """A simple stage that logs a message using the context logger."""
-    context.logger.info(f"Processing {item}")
-    return item
 
 @pytest.mark.parametrize("backend", BACKENDS)
 @pytest.mark.asyncio
-async def test_context_logger(backend, memory_handler):
+async def test_context_logger(backend):
     """
-    Tests that `context.logger` is available and correctly namespaced for each backend.
+    Tests that `context.logger` is available and correctly namespaced for each backend,
+    and that it produces structured logs.
     """
-    # We need to re-decorate the stage for each backend to test them correctly
-    @stage(name="test_logger_stage", backend=backend)
-    def logger_stage_for_backend(context: Context, item: str):
-        context.logger.info(f"Processing {item}")
-        return item
+    # We need a separate fixture for this test as it modifies the logging setup
+    handler = MemoryHandler()
+    logger = logging.getLogger()
+    original_handlers = logger.handlers[:]
+    logger.handlers = [handler]
 
-    pipeline = Pipeline([logger_stage_for_backend])
+    try:
+        @stage(name="test_logger_stage", backend=backend, workers=2 if backend == 'process' else 1)
+        def logger_stage_for_backend(context: Context, item: str):
+            context.logger.info(f"processing_item", item_id=item)
+            return item
 
-    await run_pipeline(pipeline, ["a", "b"])
+        pipeline = Pipeline([logger_stage_for_backend])
+        await run_pipeline(pipeline, ["a", "b"])
 
-    # Verify that the log messages were captured and have the correct logger name
-    expected_log_name = "lijnding.stage.test_logger_stage"
+        # The log output is now a JSON string per line
+        # We need to parse it to inspect the contents.
+        parsed_logs = [json.loads(msg) for msg in handler.buffer]
 
-    # Filter for messages from our specific logger
-    logged_messages = [msg for msg in memory_handler.buffer if msg.startswith(expected_log_name)]
+        # Check for item-specific logs from the context logger
+        item_logs = [
+            log for log in parsed_logs
+            if log.get("event") == "processing_item" and log.get("logger") == "lijnding.stage.test_logger_stage"
+        ]
 
-    # For most backends, we can check that the item-level logs were captured.
-    # For the 'process' backend, the logging happens in a separate process,
-    # so the handler in the main process will not capture them. In this case,
-    # we just verify that the pipeline ran without errors.
-    if backend != "process":
-        assert f"{expected_log_name}:INFO:Processing a" in logged_messages
-        assert f"{expected_log_name}:INFO:Processing b" in logged_messages
-    else:
-        # For the process backend, we can at least check that the stage
-        # lifecycle logs (which happen in the main process) were captured.
-        assert f"lijnding.pipeline.Pipeline:INFO:Pipeline run started." in memory_handler.buffer
-        assert any(f"lijnding.stage.test_logger_stage:INFO:Stage run finished" in msg for msg in memory_handler.buffer)
+        # The process backend does not share memory and its logs are not captured by the handler.
+        if backend != "process":
+            assert len(item_logs) == 2, f"Expected 2 item logs, but found {len(item_logs)}"
+            assert {"a", "b"} == {log.get("item_id") for log in item_logs}
+
+        # Check that the stream lifecycle logs were also created by the correct logger
+        stream_started_log = next((log for log in parsed_logs if log.get("event") == "stream_started"), None)
+        stream_finished_log = next((log for log in parsed_logs if log.get("event") == "stream_finished"), None)
+
+        assert stream_started_log is not None, "stream_started log not found"
+        assert stream_finished_log is not None, "stream_finished log not found"
+
+        assert stream_started_log.get("logger") == "lijnding.stage.test_logger_stage"
+        assert stream_finished_log.get("logger") == "lijnding.stage.test_logger_stage"
+
+    finally:
+        # Restore original handlers
+        logger.handlers = original_handlers

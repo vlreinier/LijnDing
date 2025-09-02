@@ -18,64 +18,82 @@ class SerialRunner(BaseRunner):
 
     def _run_itemwise(self, stage: "Stage", context: "Context", iterable: Iterable[Any]) -> Iterator[Any]:
         """
-        Processes items one by one in a simple loop.
+        Processes items one by one in a simple loop, with structured logging.
         """
-        for item in iterable:
-            stage.metrics["items_in"] += 1
-            attempts = 0
-            start_time = time.perf_counter()
+        stage.logger.info("stream_started")
+        total_items_in = 0
+        total_items_out = 0
+        stream_start_time = time.perf_counter()
 
-            if stage.hooks and stage.hooks.before_stage:
-                stage.hooks.before_stage(stage, context, item)
+        try:
+            for item in iterable:
+                total_items_in += 1
+                stage.metrics["items_in"] += 1
+                item_start_time = time.perf_counter()
+                attempts = 0
 
-            while True:
-                try:
-                    # Invoke the stage function
-                    results = stage._invoke(context, item)
+                if stage.hooks and stage.hooks.before_stage:
+                    stage.hooks.before_stage(stage, context, item)
 
-                    # The result of an itemwise stage can be a single item or an iterable
-                    output_stream = ensure_iterable(results)
+                while True:
+                    try:
+                        results = stage._invoke(context, item)
+                        output_stream = ensure_iterable(results)
 
-                    count = 0
-                    for res in output_stream:
-                        stage.metrics["items_out"] += 1
-                        count += 1
-                        yield res
+                        count_out = 0
+                        for res in output_stream:
+                            stage.metrics["items_out"] += 1
+                            total_items_out += 1
+                            count_out += 1
+                            yield res
 
-                    stage.logger.debug(f"Successfully processed item, produced {count} output item(s).")
+                        item_elapsed = time.perf_counter() - item_start_time
+                        stage.logger.debug(
+                            "item_processed",
+                            item_in=total_items_in,
+                            items_out=count_out,
+                            duration=round(item_elapsed, 4),
+                        )
+                        break  # Success, exit retry loop
 
-                    # If successful, break the retry loop
-                    break
+                    except Exception as e:
+                        attempts += 1
+                        stage.metrics["errors"] += 1
+                        item_elapsed = time.perf_counter() - item_start_time
+                        stage.logger.warning(
+                            "item_error",
+                            item_in=total_items_in,
+                            error=str(e),
+                            attempts=attempts,
+                            duration=round(item_elapsed, 4),
+                        )
 
-                except Exception as e:
-                    stage.logger.warning(f"Error processing item: {e}", exc_info=True)
-                    attempts += 1
-                    stage.metrics["errors"] += 1
+                        if stage.hooks and stage.hooks.on_error:
+                            stage.hooks.on_error(stage, context, item, e, attempts)
 
-                    if stage.hooks and stage.hooks.on_error:
-                        stage.hooks.on_error(stage, context, item, e, attempts)
+                        policy = stage.error_policy
+                        if policy.mode == "route_to_stage":
+                            _handle_error_routing(stage, context, item)
+                            break
+                        if policy.mode == "retry" and attempts <= policy.retries:
+                            if policy.backoff > 0:
+                                time.sleep(policy.backoff * attempts)
+                            continue
+                        if policy.mode == "skip":
+                            break
+                        raise e
 
-                    policy = stage.error_policy
-                    if policy.mode == "route_to_stage":
-                        _handle_error_routing(stage, context, item)
-                        break  # Done with this item, move to the next one
-
-                    if policy.mode == "retry" and attempts <= policy.retries:
-                        if policy.backoff > 0:
-                            time.sleep(policy.backoff * attempts)
-                        continue  # Try again
-
-                    if policy.mode == "skip":
-                        break  # Stop processing this item and move to the next
-
-                    # Default mode is 'fail'
-                    raise e
-
-                finally:
-                    elapsed = time.perf_counter() - start_time
-                    stage.metrics["time_total"] += elapsed
-
-                    if stage.hooks and stage.hooks.after_stage:
-                        # We pass the original item and a placeholder for the result,
-                        # as the result could be a consumed generator.
-                        stage.hooks.after_stage(stage, context, item, None, elapsed)
+                    finally:
+                        elapsed = time.perf_counter() - item_start_time
+                        stage.metrics["time_total"] += elapsed
+                        if stage.hooks and stage.hooks.after_stage:
+                            stage.hooks.after_stage(stage, context, item, None, elapsed)
+        finally:
+            total_duration = time.perf_counter() - stream_start_time
+            stage.logger.info(
+                "stream_finished",
+                items_in=total_items_in,
+                items_out=total_items_out,
+                errors=stage.metrics["errors"],
+                duration=round(total_duration, 4),
+            )

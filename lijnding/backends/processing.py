@@ -1,157 +1,161 @@
 from __future__ import annotations
 
 import multiprocessing as mp
+import threading
+import time
 from typing import TYPE_CHECKING, Any, Iterable, Iterator
-import dill as serializer # Use dill for robust serialization
+import dill as serializer
 
 from .base import BaseRunner, _handle_error_routing
 
 if TYPE_CHECKING:
-    from ..core.stage import Stage
     from ..core.context import Context
+    from ..core.stage import Stage
 
 SENTINEL = "__LIJNDING_SENTINEL__"
+METRICS_SENTINEL = "__METRICS__"
+ERROR_SENTINEL = "__ERROR__"
 
 def _worker_process(
     q_in: mp.Queue,
     q_out: mp.Queue,
+    stage_payload: bytes,
+    context_proxies: tuple | None,
+    worker_id: int,
 ):
-    """
-    A long-running worker process that waits for tasks on the input queue.
-    """
+    """Worker process that initializes a stage and processes items."""
     from ..core.context import Context
     from ..core.utils import ensure_iterable
+    from ..core.log import get_logger
 
-    stage = None
-    worker_context = None
-
+    logger = get_logger(f"lijnding.worker.{worker_id}")
     try:
+        stage = serializer.loads(stage_payload)
+        worker_context = Context(_from_proxies=context_proxies)
+
+        if stage.hooks.on_worker_init:
+            worker_context.worker_state = stage.hooks.on_worker_init(worker_context) or {}
+
+        logger.info("worker_started")
+
         while True:
-            task = q_in.get()
-            if task == SENTINEL:
+            item = q_in.get()
+            if item == SENTINEL:
                 break
 
+            item_start_time = time.perf_counter()
             try:
-                stage_payload, item, context_proxies = task
-
-                # One-time initialization for the worker process
-                if stage is None:
-                    stage = serializer.loads(stage_payload)
-                    worker_context = Context(_from_proxies=context_proxies)
-
-                    # Call the worker initialization hook if it exists
-                    if stage.hooks.on_worker_init:
-                        try:
-                            worker_context.worker_state = stage.hooks.on_worker_init(worker_context) or {}
-                        except Exception as e:
-                            # Propagate the error and terminate the worker
-                            q_out.put(e)
-                            break
-
-                # Invoke the stage logic. This will also handle the context.logger injection.
                 results = stage._invoke(worker_context, item)
-
+                count_out = 0
                 for res in ensure_iterable(results):
                     q_out.put(res)
+                    count_out += 1
+
+                item_elapsed = time.perf_counter() - item_start_time
+                metrics = {"items_in": 1, "items_out": count_out, "errors": 0, "time_total": item_elapsed}
+                q_out.put((METRICS_SENTINEL, metrics))
 
             except Exception as e:
-                # Errors are caught and sent back to the main process with the
-                # item that caused them.
-                q_out.put((item, e))
+                item_elapsed = time.perf_counter() - item_start_time
+                metrics = {"items_in": 1, "items_out": 0, "errors": 1, "time_total": item_elapsed}
+                q_out.put((METRICS_SENTINEL, metrics))
+                q_out.put((ERROR_SENTINEL, (item, e)))
+
+    except Exception as e:
+        logger.error("worker_critical_error", error=str(e))
+        q_out.put((ERROR_SENTINEL, (None, e))) # Signal critical failure
     finally:
-        # Signal that this worker is done
+        if stage and worker_context and stage.hooks.on_worker_exit:
+            stage.hooks.on_worker_exit(worker_context)
+        logger.info("worker_finished")
         q_out.put(SENTINEL)
 
-        # Call the worker exit hook if it exists
-        if stage and worker_context and stage.hooks.on_worker_exit:
-            try:
-                stage.hooks.on_worker_exit(worker_context)
-            except Exception:
-                # Cannot easily propagate this error, so we can't do much.
-                # A sophisticated logger could send this to a central service.
-                pass
 
 class ProcessingRunner(BaseRunner):
-    """
-    A runner that executes itemwise stages in a persistent pool of processes.
-    This runner is performant for CPU-bound tasks.
-    """
+    """A runner that executes itemwise stages in a persistent pool of processes."""
+
     def _run_itemwise(self, stage: "Stage", context: "Context", iterable: Iterable[Any]) -> Iterator[Any]:
+        stage.logger.info("stream_started", backend="processing", workers=stage.workers)
+        stream_start_time = time.perf_counter()
+
         try:
-            # Spawn is the safest and most compatible start method
             mp.set_start_method('spawn', force=True)
         except RuntimeError:
-            # It can only be set once per application
             pass
 
-        workers = getattr(stage, "workers", 1)
-        if workers <= 0:
-            workers = mp.cpu_count()
-
-        buffer_size = stage.buffer_size or (workers * 2)
-        q_in: mp.Queue = mp.Queue(maxsize=buffer_size)
+        q_in: mp.Queue = mp.Queue(maxsize=stage.buffer_size or (stage.workers * 2))
         q_out: mp.Queue = mp.Queue()
 
         context_proxies = (context._data, context._lock) if getattr(context, "_mp_safe", False) else None
-
-        # Serialize the entire stage object once.
-        # This is safe because we are using 'dill' which can handle complex objects.
         stage_payload = serializer.dumps(stage)
 
         processes = [
-            mp.Process(target=_worker_process, args=(q_in, q_out), daemon=False)
-            for _ in range(workers)
+            mp.Process(
+                target=_worker_process,
+                args=(q_in, q_out, stage_payload, context_proxies, i),
+                daemon=True
+            ) for i in range(stage.workers)
         ]
         for p in processes:
             p.start()
 
-        # Feeder logic runs in a separate thread to allow backpressure to work.
-        import threading
-
+        total_items_fed = 0
         def feeder():
-            for item in iterable:
-                task = (stage_payload, item, context_proxies)
-                q_in.put(task)
-            for _ in range(workers):
-                q_in.put(SENTINEL)
+            nonlocal total_items_fed
+            try:
+                for item in iterable:
+                    q_in.put(item)
+                    total_items_fed += 1
+            finally:
+                for _ in range(stage.workers):
+                    q_in.put(SENTINEL)
 
         feeder_thread = threading.Thread(target=feeder, daemon=True)
         feeder_thread.start()
 
-        # Collector logic: read from the output queue until we've received a sentinel
-        # from each worker.
         finished_workers = 0
-        while finished_workers < workers:
-            result = q_out.get()
+        try:
+            while finished_workers < stage.workers:
+                result = q_out.get()
 
-            if result == SENTINEL:
-                finished_workers += 1
-                continue
+                if result == SENTINEL:
+                    finished_workers += 1
+                    continue
 
-            # Check if the result is an error tuple from the worker
-            if isinstance(result, tuple) and len(result) == 2 and isinstance(result[1], Exception):
-                item, e = result
-                stage.logger.warning(f"Error processing item from worker: {e}", exc_info=True)
-                stage.metrics["errors"] += 1
+                if isinstance(result, tuple):
+                    if result[0] == METRICS_SENTINEL:
+                        for key, value in result[1].items():
+                            stage.metrics[key] += value
+                        continue
 
-                policy = stage.error_policy
-                if policy.mode == "route_to_stage":
-                    _handle_error_routing(stage, context, item)
-                    continue  # Skip yielding and get the next result
-                else:
-                    # For 'fail' mode, re-raise the original exception
-                    raise e
+                    if result[0] == ERROR_SENTINEL:
+                        item, e = result[1]
+                        stage.logger.warning(f"Error from worker: {e}")
+                        if item is None: # Critical worker error
+                            raise e
 
-            # Also handle raw exceptions that might come from worker init
-            if isinstance(result, Exception):
-                raise result
+                        policy = stage.error_policy
+                        if policy.mode == "route_to_stage":
+                            _handle_error_routing(stage, context, item)
+                        elif policy.mode != "skip":
+                            raise e
+                        continue
 
-            yield result
+                yield result
+        finally:
+            for p in processes:
+                p.join(timeout=1.0)
+                if p.is_alive():
+                    p.terminate()
 
-        # Clean up processes
-        feeder_thread.join(timeout=1.0)
-        for p in processes:
-            p.join(timeout=1.0)
+            total_duration = time.perf_counter() - stream_start_time
+            stage.logger.info(
+                "stream_finished",
+                items_in=stage.metrics['items_in'],
+                items_out=stage.metrics['items_out'],
+                errors=stage.metrics['errors'],
+                duration=round(total_duration, 4),
+            )
 
     def _run_aggregator(self, stage: "Stage", context: "Context", iterable: Iterable[Any]) -> Iterator[Any]:
         from .serial import SerialRunner

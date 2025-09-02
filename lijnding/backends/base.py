@@ -25,22 +25,14 @@ class BaseRunner(ABC):
         Executes the stage. This is the main entry point for a runner.
         It delegates to the appropriate method based on the stage type.
         """
-        stage.logger.info("Stage run started.")
-        start_time = time.time()
+        if stage.stage_type == "source":
+            # Source stages ignore the input iterable and generate their own data.
+            return ensure_iterable(stage._invoke(context))
+        if stage.stage_type == "aggregator":
+            return self._run_aggregator(stage, context, iterable)
 
-        try:
-            if stage.stage_type == "source":
-                # Source stages ignore the input iterable and generate their own data.
-                return ensure_iterable(stage._invoke(context))
-            if stage.stage_type == "aggregator":
-                return self._run_aggregator(stage, context, iterable)
-
-            # Default to itemwise processing
-            return self._run_itemwise(stage, context, iterable)
-        finally:
-            end_time = time.time()
-            total_time = end_time - start_time
-            stage.logger.info(f"Stage run finished in {total_time:.4f} seconds. Metrics: {stage.metrics}")
+        # Default to itemwise processing
+        return self._run_itemwise(stage, context, iterable)
 
     @abstractmethod
     def _run_itemwise(self, stage: "Stage", context: "Context", iterable: Iterable[Any]) -> Iterator[Any]:
@@ -52,40 +44,48 @@ class BaseRunner(ABC):
 
     def _run_aggregator(self, stage: "Stage", context: "Context", iterable: Iterable[Any]) -> Iterator[Any]:
         """
-        Processes an entire iterable at once.
-        This implementation fully consumes the input stream to support the
-        `on_stream_end` hook, then calls the aggregator function.
+        Processes an entire iterable at once with structured logging.
+        This implementation fully consumes the input stream, logs metrics,
+        and then calls the aggregator function.
         """
-        stage.metrics["items_in"] += 1  # The whole iterable is one item
+        stage.logger.info("aggregator_started")
         start_time = time.perf_counter()
+        items_in = 0
+        items_out = 0
 
         try:
-            # Materialize the iterable to ensure the upstream pipeline completes.
-            # This is a trade-off for the `on_stream_end` hook functionality.
+            # Materialize the iterable to know the count and allow hooks.
             materialized_items = list(iterable)
+            items_in = len(materialized_items)
+            stage.metrics["items_in"] += items_in
 
-            # Call the stream end hook if it exists
+            stage.logger.debug("aggregation_input_materialized", items_in=items_in)
+
             if stage.hooks and stage.hooks.on_stream_end:
                 stage.hooks.on_stream_end(context)
 
-            # The materialized list is the single item for an aggregator
             results = stage._invoke(context, materialized_items)
-
-            # Ensure the result is iterable for downstream stages
             output_stream = ensure_iterable(results)
 
             for res in output_stream:
                 stage.metrics["items_out"] += 1
+                items_out += 1
                 yield res
 
         except Exception as e:
             stage.metrics["errors"] += 1
-            # Here we might want to add hook calls or error policy handling
-            # For now, we just re-raise.
+            stage.logger.error("aggregator_error", error=str(e))
             raise e
         finally:
-            elapsed = time.perf_counter() - start_time
-            stage.metrics["time_total"] += elapsed
+            duration = time.perf_counter() - start_time
+            stage.metrics["time_total"] += duration
+            stage.logger.info(
+                "aggregator_finished",
+                items_in=items_in,
+                items_out=items_out,
+                errors=stage.metrics["errors"],
+                duration=round(duration, 4),
+            )
 
 
 def _handle_error_routing(stage: "Stage", context: "Context", item: Any):
