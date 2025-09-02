@@ -1,5 +1,5 @@
 import pytest
-from lijnding import Pipeline, stage
+from lijnding import Pipeline, stage, aggregator_stage
 from tests.helpers.test_runner import run_pipeline, BACKENDS
 
 
@@ -8,7 +8,7 @@ from tests.helpers.test_runner import run_pipeline, BACKENDS
 async def test_mixed_pipeline_itemwise_to_aggregator(backend):
     """Tests a pipeline with an itemwise stage followed by an aggregator."""
     double = stage(lambda x: x * 2, backend=backend)
-    summer = stage(sum, stage_type="aggregator", backend=backend)
+    summer = aggregator_stage(sum, backend=backend)
 
     pipeline = Pipeline([double, summer])
     data = [1, 2, 3]  # -> [2, 4, 6]

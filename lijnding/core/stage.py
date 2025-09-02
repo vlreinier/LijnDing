@@ -183,3 +183,37 @@ def stage(
     if _func is not None:
         return wrapper(_func)
     return wrapper
+
+
+def aggregator_stage(
+    _func: Optional[Callable[..., Any]] = None,
+    *,
+    name: Optional[str] = None,
+    backend: str = "serial",
+    workers: int = 1,
+    input_type: Optional[Type[Any]] = None,
+    output_type: Optional[Type[Any]] = None,
+    error_policy: Optional[ErrorPolicy] = None,
+    hooks: Optional[Hooks] = None,
+) -> Union[Stage, Callable[[Callable[..., Any]], Stage]]:
+    """
+    A decorator to create an aggregator stage.
+
+    This is a convenience decorator that is equivalent to using `@stage`
+    with `stage_type="aggregator"`. Aggregator stages receive the entire
+    input stream as a single iterable argument.
+    """
+    # We ignore the type checking error here because we are intentionally
+    # passing the `_func` argument to the `stage` decorator, which knows
+    # how to handle it.
+    return stage(
+        _func,  # type: ignore
+        name=name,
+        stage_type="aggregator",
+        backend=backend,
+        workers=workers,
+        input_type=input_type,
+        output_type=output_type,
+        error_policy=error_policy,
+        hooks=hooks,
+    )

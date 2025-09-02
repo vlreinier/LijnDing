@@ -1,6 +1,6 @@
 from typing import Generator, Any, Iterable
 
-from ..core.stage import stage, Stage
+from ..core.stage import stage, aggregator_stage, Stage
 
 
 def read_from_file(filepath: str, *, name: str = "read_from_file", **stage_kwargs) -> Stage:
@@ -40,7 +40,7 @@ def write_to_file(filepath: str, *, name: str = "write_to_file", end_of_line: st
     """
     # This stage is an aggregator because it needs to control the file resource
     # over the entire stream of items.
-    @stage(name=name, stage_type="aggregator", **stage_kwargs)
+    @aggregator_stage(name=name, **stage_kwargs)
     def _write_to_file_stage(items: Iterable[Any]) -> None:
         """The actual stage function that writes to the file."""
         with open(filepath, 'w', encoding='utf-8') as f:
@@ -64,7 +64,7 @@ def save_progress(filepath: str, *, name: str = "save_progress", end_of_line: st
     :param stage_kwargs: Additional keyword arguments to pass to the @stage decorator.
     :return: A new `Stage` that saves progress and passes items through.
     """
-    @stage(name=name, stage_type="aggregator", **stage_kwargs)
+    @aggregator_stage(name=name, **stage_kwargs)
     def _save_progress_stage(items: Iterable[Any]) -> Generator[Any, None, None]:
         """The actual stage function that writes to the file and yields."""
         with open(filepath, 'a', encoding='utf-8') as f:

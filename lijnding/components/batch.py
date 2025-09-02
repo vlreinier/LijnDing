@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Iterable, List
 
-from ..core.stage import Stage, stage
+from ..core.stage import Stage, aggregator_stage
 
 
 def batch(size: int = 10) -> Stage:
@@ -21,7 +21,7 @@ def batch(size: int = 10) -> Stage:
     if not isinstance(size, int) or size <= 0:
         raise ValueError("Batch size must be a positive integer.")
 
-    @stage(name=f"batch(size={size})", stage_type="aggregator")
+    @aggregator_stage(name=f"batch(size={size})")
     def _batch_func(iterable: Iterable[Any]) -> Iterable[List[Any]]:
         """The underlying function for the batch stage."""
         batch: List[Any] = []

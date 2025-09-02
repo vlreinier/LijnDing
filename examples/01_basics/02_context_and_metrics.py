@@ -2,7 +2,7 @@
 An example demonstrating the use of the Context object to share state
 and collect metrics across a pipeline.
 """
-from lijnding import stage, Context
+from lijnding import stage, aggregator_stage, Context
 
 @stage
 def process_data(context: Context, data: dict):
@@ -23,7 +23,7 @@ def process_data(context: Context, data: dict):
 
     return data["value"]
 
-@stage(stage_type="aggregator")
+@aggregator_stage
 def final_aggregator(context: Context, iterable):
     """
     An aggregator stage that can access the final context.

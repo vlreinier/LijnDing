@@ -1,5 +1,5 @@
 import pytest
-from lijnding import Pipeline, stage
+from lijnding import Pipeline, aggregator_stage
 from tests.helpers.test_runner import run_pipeline, BACKENDS
 
 
@@ -7,7 +7,7 @@ from tests.helpers.test_runner import run_pipeline, BACKENDS
 @pytest.mark.asyncio
 async def test_basic_aggregator(backend):
     """Tests a simple aggregator stage."""
-    sum_stage = stage(sum, stage_type="aggregator", backend=backend)
+    sum_stage = aggregator_stage(sum, backend=backend)
     pipeline = Pipeline([sum_stage])
     data = [1, 2, 3, 4, 5]
     results, _ = await run_pipeline(pipeline, data)

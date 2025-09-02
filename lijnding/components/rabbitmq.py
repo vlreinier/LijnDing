@@ -7,7 +7,7 @@ except ImportError:
     pika = None
     BlockingChannel = None
 
-from ..core.stage import stage, Stage
+from ..core.stage import stage, aggregator_stage, Stage
 from ..core.errors import MissingDependencyError
 
 
@@ -88,7 +88,7 @@ def rabbitmq_sink(
     _check_pika()
     stage_name = name or f"rabbitmq_sink_{exchange}_{routing_key}"
 
-    @stage(name=stage_name, stage_type="aggregator", **stage_kwargs)
+    @aggregator_stage(name=stage_name, **stage_kwargs)
     def _rabbitmq_sink_stage(items: Iterable[Any]) -> None:
         """The actual stage function that publishes to RabbitMQ."""
         connection = pika.BlockingConnection(pika.ConnectionParameters(host=host))

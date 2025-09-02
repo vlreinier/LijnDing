@@ -1,4 +1,4 @@
-from lijnding import Pipeline, stage, branch
+from lijnding import Pipeline, stage, aggregator_stage, branch
 
 # --- Stages for composition tests ---
 @stage
@@ -9,7 +9,7 @@ def to_lower(text: str):
 def split_words(text: str):
     return text.split()
 
-@stage(stage_type="aggregator")
+@aggregator_stage
 def count_items(items: list):
     """Counts the number of items in a list."""
     yield len(list(items))
@@ -32,12 +32,12 @@ def test_nested_pipeline():
 def test_branch_with_nested_pipeline():
     """Tests that a branch can contain a full sub-pipeline."""
     # A stage that counts words in a sentence
-    @stage(stage_type="aggregator")
+    @aggregator_stage
     def word_count_agg(lines):
         yield len(list(lines)[0].split())
 
     # A stage that counts characters in a sentence
-    @stage(stage_type="aggregator")
+    @aggregator_stage
     def char_count_agg(lines):
         yield len(list(lines)[0])
 

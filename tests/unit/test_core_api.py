@@ -1,7 +1,7 @@
 import pytest
 import asyncio
 from lijnding.core.pipeline import Pipeline
-from lijnding.core.stage import Stage, stage
+from lijnding.core.stage import Stage, stage, aggregator_stage
 from lijnding.core.context import Context
 from lijnding.core.errors import ErrorPolicy
 
@@ -136,3 +136,24 @@ def test_run_without_data_on_non_source_pipeline_fails():
 
     with pytest.raises(TypeError, match="requires a data argument unless the first stage is a source stage"):
         pipeline.collect()
+
+
+def test_aggregator_decorator_creation():
+    """Tests that the @aggregator_stage decorator creates a valid aggregator stage."""
+    @aggregator_stage
+    def my_aggregator(items):
+        return sum(items)
+
+    assert isinstance(my_aggregator, Stage)
+    assert my_aggregator.stage_type == "aggregator"
+    assert my_aggregator.name == "my_aggregator"
+
+    # Test with arguments
+    @aggregator_stage(name="custom_name", backend="thread")
+    def my_other_aggregator(items):
+        return len(list(items))
+
+    assert isinstance(my_other_aggregator, Stage)
+    assert my_other_aggregator.stage_type == "aggregator"
+    assert my_other_aggregator.name == "custom_name"
+    assert my_other_aggregator.backend == "thread"

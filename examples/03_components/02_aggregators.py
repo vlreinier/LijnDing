@@ -1,7 +1,7 @@
 """
 An example demonstrating the use of aggregator components like `batch` and `reduce`.
 """
-from lijnding import stage, batch, reduce
+from lijnding import stage, aggregator_stage, batch, reduce
 
 # --- A simple pipeline demonstrating batching and reducing ---
 
@@ -18,7 +18,7 @@ batch_stage = batch(size=4)
 # The `reduce` component is also an aggregator. It will receive the entire
 # stream from the previous stage (in this case, a stream of lists)
 # and reduce it to a single value.
-@stage(stage_type="aggregator")
+@aggregator_stage
 def sum_of_batches(batches):
     """Takes an iterable of batches and sums the numbers in each batch."""
     for batch_list in batches:

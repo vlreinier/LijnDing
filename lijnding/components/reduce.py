@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any, Callable, Iterable, Optional
 import functools
 
-from ..core.stage import Stage, stage
+from ..core.stage import Stage, aggregator_stage
 
 
 def reduce(func: Callable[[Any, Any], Any], initializer: Optional[Any] = None) -> Stage:
@@ -22,7 +22,7 @@ def reduce(func: Callable[[Any, Any], Any], initializer: Optional[Any] = None) -
         A Stage configured to perform the reduction.
     """
 
-    @stage(name="reduce", stage_type="aggregator")
+    @aggregator_stage(name="reduce")
     def _reduce_func(iterable: Iterable[Any]) -> Any:
         """The underlying function for the reduce stage."""
         iterator = iter(iterable)
