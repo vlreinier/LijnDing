@@ -82,11 +82,17 @@ class Pipeline:
         return Context(mp_safe=needs_mp)
 
     def run(
-        self, data: Iterable[Any], *, collect: bool = False
+        self, data: Optional[Iterable[Any]] = None, *, collect: bool = False
     ) -> Tuple[Union[List[Any], Iterable[Any]], Context]:
         self.logger.info("Pipeline run started.")
         start_time = time.time()
         context = self._build_context()
+
+        if data is None:
+            if not self.stages or self.stages[0].stage_type != "source":
+                raise TypeError("Pipeline.run() requires a data argument unless the first stage is a source stage.")
+            data = []
+
         stream: Iterable[Any] = data
 
         try:
@@ -102,13 +108,13 @@ class Pipeline:
             total_time = end_time - start_time
             self.logger.info(f"Pipeline run finished in {total_time:.4f} seconds.")
 
-    def collect(self, data: Iterable[Any]) -> Tuple[List[Any], Context]:
+    def collect(self, data: Optional[Iterable[Any]] = None) -> Tuple[List[Any], Context]:
         stream, context = self.run(data, collect=True)
         # The type hint says stream can be an iterable, but collect=True ensures it's a list
         return stream, context # type: ignore
 
     async def run_async(
-        self, data: Union[Iterable[Any], AsyncIterable[Any]]
+        self, data: Optional[Union[Iterable[Any], AsyncIterable[Any]]] = None
     ) -> Tuple[AsyncIterator[Any], Context]:
         """
         Asynchronously executes the pipeline.
@@ -117,6 +123,11 @@ class Pipeline:
         self.logger.info("Async pipeline run started.")
         start_time = time.time()
         context = self._build_context()
+
+        if data is None:
+            if not self.stages or self.stages[0].stage_type != "source":
+                raise TypeError("Pipeline.run_async() requires a data argument unless the first stage is a source stage.")
+            data = []
 
         # Ensure the input is an async iterable
         async def _to_async(it):

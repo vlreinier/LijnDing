@@ -70,12 +70,13 @@ class Stage:
         return Pipeline([self]) | other
 
     def run(
-        self, data: Iterable[Any], *, collect: bool = False
+        self, data: Optional[Iterable[Any]] = None, *, collect: bool = False
     ) -> Tuple[Union[List[Any], Iterable[Any]], Context]:
         """
         Executes the stage as a single-stage pipeline.
 
-        :param data: An iterable of data to process.
+        :param data: An iterable of data to process. If the stage is a source,
+                     this can be omitted.
         :param collect: If True, returns the results as a list. Otherwise, returns an iterator.
         :return: A tuple containing the results and the execution context.
         """
@@ -83,11 +84,12 @@ class Stage:
         pipeline = Pipeline([self])
         return pipeline.run(data, collect=collect)
 
-    def collect(self, data: Iterable[Any]) -> Tuple[List[Any], Context]:
+    def collect(self, data: Optional[Iterable[Any]] = None) -> Tuple[List[Any], Context]:
         """
         Executes the stage and collects all results into a list.
 
-        :param data: An iterable of data to process.
+        :param data: An iterable of data to process. If the stage is a source,
+                     this can be omitted.
         :return: A tuple containing the list of results and the execution context.
         """
         from .pipeline import Pipeline
@@ -95,12 +97,13 @@ class Stage:
         return pipeline.collect(data)
 
     async def run_async(
-        self, data: Union[Iterable[Any], AsyncIterable[Any]]
+        self, data: Optional[Union[Iterable[Any], AsyncIterable[Any]]] = None
     ) -> Tuple[AsyncIterator[Any], Context]:
         """
         Asynchronously executes the stage as a single-stage pipeline.
 
         :param data: An iterable or async iterable of data to process.
+                     If the stage is a source, this can be omitted.
         :return: A tuple containing an async iterator for the results and the execution context.
         """
         from .pipeline import Pipeline

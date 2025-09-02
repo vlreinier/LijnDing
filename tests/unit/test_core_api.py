@@ -122,3 +122,17 @@ def test_stage_informative_error_message():
         "e.g., Pipeline([add_one]).to_stage(...)"
     )
     assert str(excinfo.value) == expected_message
+
+
+def test_run_without_data_on_non_source_pipeline_fails():
+    """
+    Tests that calling run() or collect() without data on a non-source
+    pipeline raises a TypeError.
+    """
+    pipeline = add_one | to_string
+
+    with pytest.raises(TypeError, match="requires a data argument unless the first stage is a source stage"):
+        pipeline.run()
+
+    with pytest.raises(TypeError, match="requires a data argument unless the first stage is a source stage"):
+        pipeline.collect()
