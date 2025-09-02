@@ -18,7 +18,7 @@ def _configure_structlog():
         return
 
     # This is a fallback configuration. Users should configure logging themselves.
-    handler = logging.StreamHandler(sys.stdout)
+    handler = logging.StreamHandler(sys.stderr)
     handler.setFormatter(logging.Formatter("%(message)s"))
     # Use a temporary name to avoid interfering with user's handlers
     handler.set_name("lijnding_fallback_handler")

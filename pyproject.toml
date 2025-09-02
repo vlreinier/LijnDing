@@ -16,6 +16,7 @@ dependencies = [
     "structlog",
     "PyYAML>=6.0",
     "typeguard",
+    "click>=8.0",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -39,3 +40,6 @@ test = [
 
 [tool.pytest.ini_options]
 pythonpath = "."
+
+[project.scripts]
+lijnding = "lijnding.cli:cli"

@@ -28,14 +28,15 @@ def punctuate(context: Context, text: str) -> str:
     return f"{text}{punc}"
 
 
+# 1. Define the pipeline. The stages are generic and not tied to specific
+#    config values.
+pipeline = add_greeting | punctuate
+
+
 def main():
     """
     Builds and runs a pipeline, demonstrating the use of external configuration.
     """
-    # 1. Define the pipeline. The stages are generic and not tied to specific
-    #    config values.
-    pipeline = add_greeting | punctuate
-
     data = ["world", "Jules"]
     config_path = "examples/config/default.yml"
 
