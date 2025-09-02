@@ -4,7 +4,7 @@ import multiprocessing as mp
 from typing import TYPE_CHECKING, Any, Iterable, Iterator
 import dill as serializer # Use dill for robust serialization
 
-from .base import BaseRunner
+from .base import BaseRunner, _handle_error_routing
 
 if TYPE_CHECKING:
     from ..core.stage import Stage
@@ -55,9 +55,9 @@ def _worker_process(
                     q_out.put(res)
 
             except Exception as e:
-                # Errors are caught and sent back to the main process to be handled
-                # by the pipeline's error policy.
-                q_out.put(e)
+                # Errors are caught and sent back to the main process with the
+                # item that caused them.
+                q_out.put((item, e))
     finally:
         # Signal that this worker is done
         q_out.put(SENTINEL)
@@ -122,8 +122,22 @@ class ProcessingRunner(BaseRunner):
                 finished_workers += 1
                 continue
 
+            # Check if the result is an error tuple from the worker
+            if isinstance(result, tuple) and len(result) == 2 and isinstance(result[1], Exception):
+                item, e = result
+                stage.logger.warning(f"Error processing item from worker: {e}", exc_info=True)
+                stage.metrics["errors"] += 1
+
+                policy = stage.error_policy
+                if policy.mode == "route_to_stage":
+                    _handle_error_routing(stage, context, item)
+                    continue  # Skip yielding and get the next result
+                else:
+                    # For 'fail' mode, re-raise the original exception
+                    raise e
+
+            # Also handle raw exceptions that might come from worker init
             if isinstance(result, Exception):
-                # The worker encountered an error, re-raise it in the main process
                 raise result
 
             yield result

@@ -4,7 +4,7 @@ import time
 from typing import TYPE_CHECKING, Any, Iterable, Iterator
 
 from ..core.utils import ensure_iterable
-from .base import BaseRunner
+from .base import BaseRunner, _handle_error_routing
 
 if TYPE_CHECKING:
     from ..core.context import Context
@@ -56,6 +56,10 @@ class SerialRunner(BaseRunner):
                         stage.hooks.on_error(stage, context, item, e, attempts)
 
                     policy = stage.error_policy
+                    if policy.mode == "route_to_stage":
+                        _handle_error_routing(stage, context, item)
+                        break  # Done with this item, move to the next one
+
                     if policy.mode == "retry" and attempts <= policy.retries:
                         if policy.backoff > 0:
                             time.sleep(policy.backoff * attempts)

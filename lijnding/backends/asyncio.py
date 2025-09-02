@@ -4,7 +4,7 @@ import asyncio
 import inspect
 from typing import TYPE_CHECKING, Any, AsyncIterator, Iterable, Iterator
 
-from .base import BaseRunner
+from .base import BaseRunner, _handle_error_routing_async
 from ..core.utils import ensure_iterable
 
 if TYPE_CHECKING:
@@ -118,9 +118,18 @@ class AsyncioRunner(BaseRunner):
 
             except Exception as e:
                 stage.logger.warning(f"Error processing item: {e}", exc_info=True)
-                # Proper error handling with policies would go here.
-                # For now, we re-raise.
-                raise e
+                stage.metrics["errors"] += 1
+
+                # TODO: Implement full error policies (e.g., retry) for async.
+                policy = stage.error_policy
+                if policy.mode == "route_to_stage":
+                    await _handle_error_routing_async(stage, context, item)
+                elif policy.mode == "skip":
+                    # Do nothing, just move to the next item
+                    pass
+                else:
+                    # Default 'fail' policy
+                    raise e
 
     def run(self, stage: "Stage", context: "Context", iterable: Iterable[Any]) -> Iterator[Any]:
         """

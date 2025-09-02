@@ -5,7 +5,7 @@ import threading
 from typing import TYPE_CHECKING, Any, Iterable, Iterator
 
 from ..core.utils import ensure_iterable
-from .base import BaseRunner
+from .base import BaseRunner, _handle_error_routing
 
 if TYPE_CHECKING:
     from ..core.context import Context
@@ -70,7 +70,18 @@ class ThreadingRunner(BaseRunner):
                         stage.logger.debug(f"Successfully processed item, produced {count} output item(s).")
                     except Exception as e:
                         stage.logger.warning(f"Error processing item: {e}", exc_info=True)
-                        q_out.put(e)
+                        stage.metrics["errors"] += 1
+
+                        policy = stage.error_policy
+                        if policy.mode == "route_to_stage":
+                            try:
+                                _handle_error_routing(stage, worker_context, item)
+                            except Exception as route_e:
+                                stage.logger.error(f"Error while routing to dead-letter stage: {route_e}", exc_info=True)
+                                q_out.put(e) # Propagate original error if routing fails
+                        else:
+                            # For other policies like 'fail', propagate the error to the main thread
+                            q_out.put(e)
                     finally:
                         q_in.task_done()
 
