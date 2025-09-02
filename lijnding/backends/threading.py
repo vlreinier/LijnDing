@@ -28,7 +28,9 @@ class ThreadingRunner(BaseRunner):
 
         buffer_size = stage.buffer_size or (workers * 2)
         q_in: queue.Queue[Any] = queue.Queue(maxsize=buffer_size)
-        q_out: queue.Queue[Any] = queue.Queue(maxsize=buffer_size)
+        # The output queue is unbounded; backpressure is handled by the
+        # input queue of the next stage in the pipeline.
+        q_out: queue.Queue[Any] = queue.Queue(maxsize=0)
 
         def feeder():
             for item in iterable:

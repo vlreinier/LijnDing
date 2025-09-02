@@ -105,13 +105,18 @@ class ProcessingRunner(BaseRunner):
         for p in processes:
             p.start()
 
-        # Feeder logic: put all items and then one sentinel per worker onto the queue
-        for item in iterable:
-            task = (stage_payload, item, context_proxies)
-            q_in.put(task)
+        # Feeder logic runs in a separate thread to allow backpressure to work.
+        import threading
 
-        for _ in range(workers):
-            q_in.put(SENTINEL)
+        def feeder():
+            for item in iterable:
+                task = (stage_payload, item, context_proxies)
+                q_in.put(task)
+            for _ in range(workers):
+                q_in.put(SENTINEL)
+
+        feeder_thread = threading.Thread(target=feeder, daemon=True)
+        feeder_thread.start()
 
         # Collector logic: read from the output queue until we've received a sentinel
         # from each worker.
@@ -144,6 +149,7 @@ class ProcessingRunner(BaseRunner):
             yield result
 
         # Clean up processes
+        feeder_thread.join(timeout=1.0)
         for p in processes:
             p.join(timeout=1.0)
 
