@@ -10,6 +10,8 @@ from .core.hooks import Hooks
 from .backends.runner_registry import register_backend
 from .components import (
     branch,
+    batch,
+    reduce,
     filter_,
     read_from_file,
     write_to_file,
@@ -28,6 +30,8 @@ __all__ = [
 
     # Components
     "branch",
+    "batch",
+    "reduce",
     "filter_",
     "read_from_file",
     "write_to_file",

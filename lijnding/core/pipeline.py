@@ -20,18 +20,13 @@ class Pipeline:
 
     def add(self, other: Any) -> "Pipeline":
         """
-        Adds a component (Stage, Pipeline, or Branch) to this pipeline.
+        Adds a component (Stage or Pipeline) to this pipeline.
         This enables a fluent, chainable interface for building pipelines.
         """
-        # Local import to prevent circular dependency
-        from ..components.branch import Branch
-
         other_stage: Stage
         if isinstance(other, Stage):
             other_stage = other
         elif isinstance(other, Pipeline):
-            other_stage = other.to_stage()
-        elif isinstance(other, Branch):
             other_stage = other.to_stage()
         else:
             raise TypeError(f"Unsupported type for pipeline composition: {type(other)}")
@@ -44,19 +39,13 @@ class Pipeline:
 
     def __or__(self, other: Any) -> "Pipeline":
         """
-        Composes this pipeline with another component (Stage, Pipeline, or Branch).
+        Composes this pipeline with another component (Stage or Pipeline).
         """
-        # Local import to prevent circular dependency
-        from ..components.branch import Branch
-
         other_stage: Stage
         if isinstance(other, Stage):
             other_stage = other
         elif isinstance(other, Pipeline):
             # If the other item is a full pipeline, convert it to a single stage
-            other_stage = other.to_stage()
-        elif isinstance(other, Branch):
-            # If it's a branch, convert it to a stage
             other_stage = other.to_stage()
         else:
             raise TypeError(f"Unsupported type for pipeline composition: {type(other)}")

@@ -24,7 +24,7 @@ def main():
     print("--- Running Branch with 'concat' merge strategy ---")
 
     # Construct the pipeline directly using the `branch` factory function.
-    # No need for .to_stage()
+    # The `branch` component returns a `Stage`, which can be chained like any other stage.
     concat_pipeline = to_upper | branch(reverse_text, get_length, merge="concat")
 
     results_concat, _ = concat_pipeline.collect(data)
@@ -37,7 +37,8 @@ def main():
     # --- Example 2: Zipped Branches ---
     print("\n--- Running Branch with 'zip' merge strategy ---")
 
-    # The `branch` component can be placed anywhere in the pipeline.
+    # A branch can be used as a standalone pipeline because it is a Stage,
+    # and Stages have a `.collect()` method.
     zip_pipeline = branch(to_upper, get_length, reverse_text, merge="zip")
 
     results_zip, _ = zip_pipeline.collect(data)

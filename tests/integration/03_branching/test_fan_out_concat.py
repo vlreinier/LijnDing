@@ -1,6 +1,5 @@
 import pytest
-from lijnding import Pipeline, stage
-from lijnding.components.branch import Branch
+from lijnding import Pipeline, stage, branch
 from tests.helpers.test_runner import run_pipeline, BACKENDS
 
 
@@ -13,8 +12,8 @@ async def test_branch_fan_out_concat(backend):
     times_ten = Pipeline([stage(lambda x: x * 10, backend=backend)])
 
     # Create a branch that sends each item to both pipelines
-    branch_component = Branch(add_ten, times_ten, merge="concat")
-    pipeline = Pipeline([branch_component.to_stage()])
+    branch_stage = branch(add_ten, times_ten, merge="concat")
+    pipeline = Pipeline([branch_stage])
 
     data = [1, 2]
     results, _ = await run_pipeline(pipeline, data)

@@ -23,12 +23,16 @@ def process_data(context: Context, data: dict):
 
     return data["value"]
 
-@stage
+@stage(stage_type="aggregator")
 def final_aggregator(context: Context, iterable):
     """
     An aggregator stage that can access the final context.
     """
+    # First, consume the iterable to ensure the upstream pipeline completes
+    values = list(iterable)
+
     # This stage receives the context shared by the whole pipeline.
+    # Access the context *after* the upstream pipeline has finished.
     total_items = context.get("items_processed")
     error_items = context.get("error_items")
 
@@ -37,7 +41,7 @@ def final_aggregator(context: Context, iterable):
     print(f"Items with errors: {error_items}")
 
     # The iterable is still passed, so we can process it.
-    yield sum(iterable)
+    yield sum(values)
 
 
 def main():
