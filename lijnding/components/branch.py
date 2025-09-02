@@ -10,6 +10,57 @@ if TYPE_CHECKING:
     from ..core.context import Context
 
 
+async def _async_zip(*iterators: AsyncIterator[Any]) -> AsyncIterator[tuple[Any, ...]]:
+    """
+    Zips multiple async iterators together.
+    Stops when the shortest iterator is exhausted.
+    """
+    if not iterators:
+        return
+
+    iterators = [it.__aiter__() for it in iterators]
+    while True:
+        try:
+            yield tuple([await it.__anext__() for it in iterators])
+        except StopAsyncIteration:
+            return
+
+
+async def _async_zip_longest(*iterators: AsyncIterator[Any], fillvalue: Any = None) -> AsyncIterator[tuple[Any, ...]]:
+    """
+    Zips multiple async iterators together.
+    Stops when the longest iterator is exhausted, filling missing values with `fillvalue`.
+    """
+    if not iterators:
+        return
+
+    iterators = [it.__aiter__() for it in iterators]
+    num_iterators = len(iterators)
+    finished = [False] * num_iterators
+
+    while True:
+        results = []
+        num_finished = 0
+
+        for i, it in enumerate(iterators):
+            if finished[i]:
+                results.append(fillvalue)
+                num_finished += 1
+                continue
+
+            try:
+                results.append(await it.__anext__())
+            except StopAsyncIteration:
+                finished[i] = True
+                num_finished += 1
+                results.append(fillvalue)
+
+        if num_finished == num_iterators:
+            break
+
+        yield tuple(results)
+
+
 def branch(*branches: Union[Stage, "Pipeline"], merge: str = "concat") -> Stage:
     """
     A factory function for creating a Branch component.
@@ -47,9 +98,11 @@ def branch(*branches: Union[Stage, "Pipeline"], merge: str = "concat") -> Stage:
                     async for res in it:
                         yield res
             elif merge == "zip":
-                raise NotImplementedError("Async zip merge strategy is not yet implemented.")
+                async for res in _async_zip(*branch_iterators):
+                    yield res
             elif merge == "zip_longest":
-                raise NotImplementedError("Async zip_longest merge strategy is not yet implemented.")
+                async for res in _async_zip_longest(*branch_iterators, fillvalue=None):
+                    yield res
 
         return _branch_func_async
     else:

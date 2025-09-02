@@ -1,5 +1,8 @@
+import pytest
+
 from lijnding import stage
 from lijnding.components.branch import branch
+
 
 @stage
 def to_upper(x: str) -> str:
@@ -35,4 +38,41 @@ def test_branch_with_uneven_outputs():
 
     pipeline_zip_longest = stage(lambda x: x) | branch(multi_yield, exclaim, merge="zip_longest")
     results_zip_longest, _ = pipeline_zip_longest.collect(["a"])
+    assert results_zip_longest == [("a", "a!"), ("a", None)]
+
+
+@stage(backend="async")
+async def to_upper_async(x: str) -> str:
+    return x.upper()
+
+
+@stage(backend="async")
+async def exclaim_async(x: str) -> str:
+    return f"{x}!"
+
+
+@pytest.mark.asyncio
+async def test_branch_zip_async():
+    pipeline = stage(lambda x: x) | branch(to_upper_async, exclaim_async, merge="zip")
+    stream, _ = await pipeline.run_async(["a", "b"])
+    results = [item async for item in stream]
+    assert results == [("A", "a!"), ("B", "b!")]
+
+
+@pytest.mark.asyncio
+async def test_branch_with_uneven_outputs_async():
+    @stage(backend="async")
+    async def multi_yield_async(x):
+        yield x
+        yield x
+
+    # Test with one sync and one async stage
+    pipeline_zip = stage(lambda x: x) | branch(multi_yield_async, exclaim, merge="zip")
+    stream_zip, _ = await pipeline_zip.run_async(["a", "b"])
+    results_zip = [item async for item in stream_zip]
+    assert results_zip == [("a", "a!"), ("b", "b!")]
+
+    pipeline_zip_longest = stage(lambda x: x) | branch(multi_yield_async, exclaim, merge="zip_longest")
+    stream_zip_longest, _ = await pipeline_zip_longest.run_async(["a"])
+    results_zip_longest = [item async for item in stream_zip_longest]
     assert results_zip_longest == [("a", "a!"), ("a", None)]
