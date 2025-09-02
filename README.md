@@ -123,6 +123,57 @@ results, _ = pipeline.collect([])
 # results is: [45]
 ```
 
+### Using External Configuration
+
+For more complex pipelines, it's good practice to separate your parameters from your code. LijnDing supports loading pipeline parameters from a YAML file.
+
+**1. Create a YAML file** (e.g., `config.yml`):
+
+```yaml
+# config.yml
+processing:
+  greeting: "Hello from config"
+  punctuation: "!"
+```
+
+**2. Access config from your stages**:
+
+The `context` object provides access to a `config` object. You can use its `.get()` method to retrieve values. The `get()` method allows you to provide a default value for graceful fallback.
+
+```python
+from lijnding import stage
+
+@stage
+def add_greeting(context, text: str) -> str:
+    # Access a nested value, providing a default if it's not found
+    greeting = context.config.get("processing.greeting", "Hi")
+    return f"{greeting}, {text}"
+
+@stage
+def punctuate(context, text: str) -> str:
+    punc = context.config.get("processing.punctuation", ".")
+    return f"{text}{punc}"
+```
+
+**3. Run the pipeline with configuration**:
+
+Pass the path to your YAML file to the `run()` or `collect()` method using the `config_path` argument.
+
+```python
+pipeline = add_greeting | punctuate
+
+# Run with the config file
+results, _ = pipeline.collect(
+    ["world"],
+    config_path="config.yml"
+)
+# results is: ['Hello from config, world!']
+
+# Run without the config file (uses defaults)
+results_no_config, _ = pipeline.collect(["world"])
+# results_no_config is: ['Hi, world.']
+```
+
 ---
 
 ## Installation

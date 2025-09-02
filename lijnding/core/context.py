@@ -6,6 +6,7 @@ from typing import Any, Dict, Optional
 import logging
 
 from .log import get_logger
+from ..config import Config
 
 
 class Context:
@@ -13,9 +14,10 @@ class Context:
     A dict-like context for sharing state and metrics across pipeline stages.
     """
 
-    def __init__(self, mp_safe: bool = False, initial_data: Optional[Dict[str, Any]] = None, *, _from_proxies=None):
+    def __init__(self, mp_safe: bool = False, initial_data: Optional[Dict[str, Any]] = None, config: Optional[Config] = None, *, _from_proxies=None):
         self.logger: logging.Logger = get_logger("lijnding.context")
         self.worker_state: Dict[str, Any] = {}
+        self.config = config
 
         if _from_proxies:
             # Reconstruct from existing manager proxies

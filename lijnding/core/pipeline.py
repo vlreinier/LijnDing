@@ -7,6 +7,7 @@ from .context import Context
 from .errors import PipelineConnectionError
 from .stage import Stage, stage
 from .log import get_logger
+from ..config import Config, load_config
 from typing import Iterable
 
 
@@ -73,16 +74,17 @@ class Pipeline:
     def _get_required_backend_names(self) -> set[str]:
         return set(getattr(s, "backend", "serial") for s in self.stages)
 
-    def _build_context(self) -> Context:
+    def _build_context(self, config: Optional[Config] = None) -> Context:
         needs_mp = "process" in self._get_required_backend_names()
-        return Context(mp_safe=needs_mp)
+        return Context(mp_safe=needs_mp, config=config)
 
     def run(
-        self, data: Optional[Iterable[Any]] = None, *, collect: bool = False
+        self, data: Optional[Iterable[Any]] = None, *, collect: bool = False, config_path: Optional[str] = None
     ) -> Tuple[Union[List[Any], Iterable[Any]], Context]:
         self.logger.info("Pipeline run started.")
         start_time = time.time()
-        context = self._build_context()
+        config = load_config(config_path)
+        context = self._build_context(config)
 
         if data is None:
             if not self.stages or self.stages[0].stage_type != "source":
@@ -104,13 +106,13 @@ class Pipeline:
             total_time = end_time - start_time
             self.logger.info(f"Pipeline run finished in {total_time:.4f} seconds.")
 
-    def collect(self, data: Optional[Iterable[Any]] = None) -> Tuple[List[Any], Context]:
-        stream, context = self.run(data, collect=True)
+    def collect(self, data: Optional[Iterable[Any]] = None, config_path: Optional[str] = None) -> Tuple[List[Any], Context]:
+        stream, context = self.run(data, collect=True, config_path=config_path)
         # The type hint says stream can be an iterable, but collect=True ensures it's a list
         return stream, context # type: ignore
 
     async def run_async(
-        self, data: Optional[Union[Iterable[Any], AsyncIterable[Any]]] = None
+        self, data: Optional[Union[Iterable[Any], AsyncIterable[Any]]] = None, config_path: Optional[str] = None
     ) -> Tuple[AsyncIterator[Any], Context]:
         """
         Asynchronously executes the pipeline.
@@ -118,7 +120,8 @@ class Pipeline:
         """
         self.logger.info("Async pipeline run started.")
         start_time = time.time()
-        context = self._build_context()
+        config = load_config(config_path)
+        context = self._build_context(config)
 
         if data is None:
             if not self.stages or self.stages[0].stage_type != "source":

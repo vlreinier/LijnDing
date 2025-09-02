@@ -73,7 +73,7 @@ class Stage:
         return Pipeline([self]) | other
 
     def run(
-        self, data: Optional[Iterable[Any]] = None, *, collect: bool = False
+        self, data: Optional[Iterable[Any]] = None, *, collect: bool = False, config_path: Optional[str] = None
     ) -> Tuple[Union[List[Any], Iterable[Any]], Context]:
         """
         Executes the stage as a single-stage pipeline.
@@ -81,37 +81,40 @@ class Stage:
         :param data: An iterable of data to process. If the stage is a source,
                      this can be omitted.
         :param collect: If True, returns the results as a list. Otherwise, returns an iterator.
+        :param config_path: Path to a YAML configuration file.
         :return: A tuple containing the results and the execution context.
         """
         from .pipeline import Pipeline
         pipeline = Pipeline([self])
-        return pipeline.run(data, collect=collect)
+        return pipeline.run(data, collect=collect, config_path=config_path)
 
-    def collect(self, data: Optional[Iterable[Any]] = None) -> Tuple[List[Any], Context]:
+    def collect(self, data: Optional[Iterable[Any]] = None, config_path: Optional[str] = None) -> Tuple[List[Any], Context]:
         """
         Executes the stage and collects all results into a list.
 
         :param data: An iterable of data to process. If the stage is a source,
                      this can be omitted.
+        :param config_path: Path to a YAML configuration file.
         :return: A tuple containing the list of results and the execution context.
         """
         from .pipeline import Pipeline
         pipeline = Pipeline([self])
-        return pipeline.collect(data)
+        return pipeline.collect(data, config_path=config_path)
 
     async def run_async(
-        self, data: Optional[Union[Iterable[Any], AsyncIterable[Any]]] = None
+        self, data: Optional[Union[Iterable[Any], AsyncIterable[Any]]] = None, config_path: Optional[str] = None
     ) -> Tuple[AsyncIterator[Any], Context]:
         """
         Asynchronously executes the stage as a single-stage pipeline.
 
         :param data: An iterable or async iterable of data to process.
                      If the stage is a source, this can be omitted.
+        :param config_path: Path to a YAML configuration file.
         :return: A tuple containing an async iterator for the results and the execution context.
         """
         from .pipeline import Pipeline
         pipeline = Pipeline([self])
-        return await pipeline.run_async(data)
+        return await pipeline.run_async(data, config_path=config_path)
 
     def _invoke(self, context: Context, *args: Any, **kwargs: Any) -> Any:
         if self._inject_context:
