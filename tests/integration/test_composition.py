@@ -2,15 +2,19 @@ from lijnding import Pipeline, stage, aggregator_stage, branch
 
 # --- Stages for composition tests ---
 @stage
-def to_lower(text: str):
+def to_lower(text: str) -> str:
     return text.lower()
 
+from typing import List
+
 @stage
-def split_words(text: str):
+def split_words(text: str) -> List[str]:
     return text.split()
 
+from typing import Iterable
+
 @aggregator_stage
-def count_items(items: list):
+def count_items(items: list) -> Iterable[int]:
     """Counts the number of items in a list."""
     yield len(list(items))
 

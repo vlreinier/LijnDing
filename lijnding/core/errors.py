@@ -60,3 +60,8 @@ class PipelineConnectionError(LijndingError):
             f"  - Output type of '{from_stage.name}': {from_stage.output_type}\n"
             f"  - Input type of '{to_stage.name}': {to_stage.input_type}"
         )
+
+
+class MissingTypeHintError(LijndingError, TypeError):
+    """Raised when a Stage is defined without necessary type hints."""
+    pass

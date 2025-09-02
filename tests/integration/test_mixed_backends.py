@@ -2,13 +2,13 @@ import time
 from lijnding import Pipeline, stage
 
 @stage(backend="thread", workers=2)
-def slow_io_stage(x: int):
+def slow_io_stage(x: int) -> int:
     """Simulates a slow I/O operation."""
     time.sleep(0.1)
     return x * 2
 
 @stage(backend="serial")
-def fast_cpu_stage(x: int):
+def fast_cpu_stage(x: int) -> int:
     """A fast, simple transformation."""
     return x + 1
 

@@ -20,6 +20,7 @@ from .context import Context
 from .errors import ErrorPolicy
 from .hooks import Hooks
 from .log import get_logger
+from typeguard import typechecked
 
 
 class Stage:
@@ -48,12 +49,9 @@ class Stage:
         self.hooks = hooks or Hooks()
         self.is_async = inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func)
 
-        self._input_type_override = input_type
-        self._output_type_override = output_type
-
         inferred_in, inferred_out, num_args = infer_types(func)
-        self.input_type = self._input_type_override or inferred_in
-        self.output_type = self._output_type_override or inferred_out
+        self.input_type = input_type or inferred_in
+        self.output_type = output_type or inferred_out
         self._inject_context = "context" in inspect.signature(func).parameters
 
         if num_args == 0:
@@ -203,7 +201,7 @@ def stage(
     """
     def wrapper(func: Callable[..., Any]) -> Stage:
         return Stage(
-            func,
+            typechecked(func),
             name=name,
             stage_type=stage_type,
             backend=backend,

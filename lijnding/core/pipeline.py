@@ -7,7 +7,7 @@ from .context import Context
 from .errors import PipelineConnectionError
 from .stage import Stage, stage
 from .log import get_logger
-from ..typing.checker import are_types_compatible
+from typing import Iterable
 
 
 class Pipeline:
@@ -38,13 +38,6 @@ class Pipeline:
             if last_stage.stage_type == "source" and other_stage.stage_type == "source":
                 raise TypeError("Cannot pipe from one 'source' stage to another.")
 
-            if last_stage.stage_type != "source":
-                if not are_types_compatible(last_stage.output_type, other_stage.input_type):
-                    raise PipelineConnectionError(
-                        from_stage=last_stage,
-                        to_stage=other_stage,
-                        message="Type mismatch between stages.",
-                    )
         self.stages.append(other_stage)
         return self
 
@@ -68,16 +61,9 @@ class Pipeline:
             if last_stage.stage_type == "source" and other_stage.stage_type == "source":
                 raise TypeError("Cannot pipe from one 'source' stage to another.")
 
-            if last_stage.stage_type != "source":
-                if not are_types_compatible(last_stage.output_type, other_stage.input_type):
-                    raise PipelineConnectionError(
-                        from_stage=last_stage,
-                        to_stage=other_stage,
-                        message="Type mismatch between stages.",
-                    )
 
         if not self.stages:
-            return Pipeline([other_stage])
+             return Pipeline([other_stage])
         return Pipeline(self.stages + [other_stage])
 
 

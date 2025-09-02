@@ -3,8 +3,10 @@ from lijnding import Pipeline, stage
 
 # --- Source Stage Tests ---
 
+from typing import Generator
+
 @stage
-def simple_source():
+def simple_source() -> Generator[int, None, None]:
     """A simple source stage that yields a few numbers."""
     yield from range(3)
 

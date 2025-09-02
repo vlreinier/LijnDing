@@ -33,6 +33,7 @@ test = [
     "pytest-asyncio",
     "pytest-aiohttp", # For testing the http component
     "pika>=1.3.0",
+    "typeguard",
 ]
 
 [tool.pytest.ini_options]

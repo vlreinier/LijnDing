@@ -7,7 +7,7 @@ class MyException(Exception):
     pass
 
 @stage
-def failing_stage(x):
+def failing_stage(x: int) -> int:
     if x == 2:
         raise MyException("I failed on 2!")
     return x
@@ -15,7 +15,7 @@ def failing_stage(x):
 # A stage to test retries
 retry_counter = 0
 @stage(error_policy=ErrorPolicy(mode="retry", retries=2))
-def retry_stage(x):
+def retry_stage(x: int) -> int:
     global retry_counter
     retry_counter += 1
     if x == 0:
