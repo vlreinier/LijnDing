@@ -17,18 +17,8 @@ def _configure_structlog():
     if not _has_structlog or structlog.is_configured():
         return
 
-    # This is a fallback configuration. Users should configure logging themselves.
-    handler = logging.StreamHandler(sys.stderr)
-    handler.setFormatter(logging.Formatter("%(message)s"))
-    # Use a temporary name to avoid interfering with user's handlers
-    handler.set_name("lijnding_fallback_handler")
-
-    root_logger = logging.getLogger()
-    # Avoid adding duplicate handlers
-    if "lijnding_fallback_handler" not in [h.get_name() for h in root_logger.handlers]:
-        root_logger.addHandler(handler)
-        root_logger.setLevel(logging.INFO)
-
+    # A library should not configure the root logger.
+    # It is the responsibility of the application to configure logging.
     structlog.configure(
         processors=[
             structlog.stdlib.filter_by_level,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Any, Iterable, List, Optional, Tuple, Union, AsyncIterator, AsyncIterable
 import time
+import asyncio
 
 from ..backends.runner_registry import get_runner
 from .context import Context
@@ -145,10 +146,15 @@ class Pipeline:
                 if hasattr(runner, 'run_async'):
                     stream = runner.run_async(stage, context, stream)
                 else:
-                    # This is a synchronous bridge for running a sync stage in an async pipeline
-                    # It's not perfectly non-blocking but is a pragmatic solution.
-                    # A more advanced implementation would run this in a thread pool.
-                    sync_results = runner.run(stage, context, [item async for item in stream])
+                    # This is a synchronous bridge for running a sync stage in an async pipeline.
+                    # We run the synchronous stage in a thread pool to avoid blocking the event loop.
+                    items = [item async for item in stream]
+                    loop = asyncio.get_running_loop()
+
+                    def run_sync_stage_in_thread():
+                        return list(runner.run(stage, context, items))
+
+                    sync_results = await loop.run_in_executor(None, run_sync_stage_in_thread)
                     stream = _to_async(sync_results)
             return stream, context
         finally:

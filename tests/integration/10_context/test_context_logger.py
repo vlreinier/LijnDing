@@ -3,6 +3,8 @@ import pytest
 import json
 from logging import LogRecord
 
+import structlog
+
 from lijnding import Pipeline, stage, Context
 from tests.helpers.test_runner import run_pipeline, BACKENDS
 
@@ -52,6 +54,22 @@ async def test_context_logger(backend):
     logger = logging.getLogger()
     original_handlers = logger.handlers[:]
     logger.handlers = [handler]
+    logger.setLevel(logging.INFO)
+
+    # Since we removed automatic configuration from the library, we must configure
+    # it for this test to capture the logs.
+    structlog.configure(
+        processors=[
+            structlog.stdlib.filter_by_level,
+            structlog.stdlib.add_logger_name,
+            structlog.stdlib.add_log_level,
+            structlog.processors.JSONRenderer(),
+        ],
+        context_class=dict,
+        logger_factory=structlog.stdlib.LoggerFactory(),
+        wrapper_class=structlog.stdlib.BoundLogger,
+        cache_logger_on_first_use=False, # Avoid caching between test runs
+    )
 
     try:
         @stage(name="test_logger_stage", backend=backend, workers=2 if backend == 'process' else 1)
