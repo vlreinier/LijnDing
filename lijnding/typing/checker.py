@@ -1,46 +1,74 @@
-from typing import Any, get_args, get_origin
+from typing import Any, Type, Union, get_origin, get_args, Iterable
 
 
-def check_instance(value: Any, annotation: Any) -> bool:
+def check_instance(obj: Any, type_hint: Type[Any]) -> bool:
     """
-    Best-effort runtime type check that supports generics like List[int].
-    Falls back to True if the annotation is Any or cannot be enforced.
+    A more robust version of `isinstance` that handles generic types from `typing`.
     """
-    if annotation is Any or annotation is None:
+    if type_hint is Any:
         return True
 
-    origin = get_origin(annotation)
-    args = get_args(annotation)
+    origin = get_origin(type_hint)
+    if origin is None:  # It's a non-generic type
+        return isinstance(obj, type_hint)
 
-    # Plain class or typing alias without args
-    if origin is None:
-        try:
-            return isinstance(value, annotation)
-        except TypeError:
-            # This can happen for complex types that aren't classes, like Union
-            return True
+    args = get_args(type_hint)
+    if not args:  # e.g., `list` or `dict` without parameters
+        return isinstance(obj, origin)
 
-    # Handle common containers from `typing`
-    if origin in (list, tuple, set, frozenset):
-        container_type = list if origin is list else tuple if origin is tuple else set
-        if not isinstance(value, container_type):
-            return False
-        if not args:
-            return True # e.g., list vs List[Any]
+    if origin is Union:
+        return any(check_instance(obj, arg) for arg in args)
 
-        item_type = args[0]
-        if len(args) == 2 and args[1] is Ellipsis: # e.g., Tuple[int, ...]
-            return all(check_instance(v, item_type) for v in value)
+    if not isinstance(obj, origin):
+        return False
 
-        return all(check_instance(v, item_type) for v in value)
+    # Handle specific generic types
+    if origin in (list, set, frozenset) and len(args) == 1:
+        return all(check_instance(item, args[0]) for item in obj)
+    if origin is dict and len(args) == 2:
+        return all(check_instance(k, args[0]) and check_instance(v, args[1]) for k, v in obj.items())
+    if origin is tuple and len(args) > 0:
+        if ... in args:  # Ellipsis, e.g., `Tuple[int, ...]`
+            return all(check_instance(item, args[0]) for item in obj)
+        return len(obj) == len(args) and all(check_instance(item, arg) for item, arg in zip(obj, args))
 
-    if origin is dict:
-        if not isinstance(value, dict):
-            return False
-        if not args:
-            return True
-        key_type, value_type = args
-        return all(check_instance(k, key_type) and check_instance(v, value_type) for k, v in value.items())
+    return True  # Fallback for other generics
 
-    # Fallback for types we don't handle explicitly
-    return True
+
+from typing import Any, Type, Union, get_origin, get_args, Iterable, Generator
+
+def are_types_compatible(output_type: Type[Any], input_type: Type[Any]) -> bool:
+    """
+    Checks if the output type of one stage is compatible with the input type of another.
+    This function handles generic types like `Any`, `Union`, and `Iterable`.
+    """
+    if input_type is Any or output_type is Any:
+        return True
+
+    origin_out = get_origin(output_type)
+    origin_in = get_origin(input_type)
+    args_out = get_args(output_type)
+    args_in = get_args(input_type)
+
+    if origin_out is Generator:
+        output_type = args_out[0]
+        origin_out = get_origin(output_type)
+        args_out = get_args(output_type)
+
+    if origin_in is Union:
+        return any(are_types_compatible(output_type, arg) for arg in args_in)
+    if origin_out is Union:
+        # This is the incorrect logic. It should be any, not all.
+        return any(are_types_compatible(arg, input_type) for arg in args_out)
+
+    if origin_in is Iterable and origin_out is Iterable:
+        if args_in and args_out:
+            return are_types_compatible(args_out[0], args_in[0])
+        return True
+
+    try:
+        return issubclass(output_type, input_type)
+    except TypeError:
+        if origin_out and origin_in:
+            return issubclass(origin_out, origin_in)
+        return output_type == input_type

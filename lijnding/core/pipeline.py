@@ -4,8 +4,10 @@ import time
 
 from ..backends.runner_registry import get_runner
 from .context import Context
+from .errors import PipelineConnectionError
 from .stage import Stage, stage
 from .log import get_logger
+from ..typing.checker import are_types_compatible
 
 
 class Pipeline:
@@ -31,9 +33,18 @@ class Pipeline:
         else:
             raise TypeError(f"Unsupported type for pipeline composition: {type(other)}")
 
-        if self.stages and self.stages[-1].stage_type == "source" and other_stage.stage_type == "source":
-            raise TypeError("Cannot pipe from one 'source' stage to another.")
+        if self.stages:
+            last_stage = self.stages[-1]
+            if last_stage.stage_type == "source" and other_stage.stage_type == "source":
+                raise TypeError("Cannot pipe from one 'source' stage to another.")
 
+            if last_stage.stage_type != "source":
+                if not are_types_compatible(last_stage.output_type, other_stage.input_type):
+                    raise PipelineConnectionError(
+                        from_stage=last_stage,
+                        to_stage=other_stage,
+                        message="Type mismatch between stages.",
+                    )
         self.stages.append(other_stage)
         return self
 
@@ -52,11 +63,21 @@ class Pipeline:
 
         # If this pipeline is empty, create a new one starting with the new stage.
         # Otherwise, add the new stage to the existing list.
-        if self.stages and self.stages[-1].stage_type == "source" and other_stage.stage_type == "source":
-            raise TypeError("Cannot pipe from one 'source' stage to another.")
+        if self.stages:
+            last_stage = self.stages[-1]
+            if last_stage.stage_type == "source" and other_stage.stage_type == "source":
+                raise TypeError("Cannot pipe from one 'source' stage to another.")
+
+            if last_stage.stage_type != "source":
+                if not are_types_compatible(last_stage.output_type, other_stage.input_type):
+                    raise PipelineConnectionError(
+                        from_stage=last_stage,
+                        to_stage=other_stage,
+                        message="Type mismatch between stages.",
+                    )
 
         if not self.stages:
-             return Pipeline([other_stage])
+            return Pipeline([other_stage])
         return Pipeline(self.stages + [other_stage])
 
 

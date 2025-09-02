@@ -46,3 +46,17 @@ class ErrorPolicy:
             raise ValueError("Retries must be a positive integer for 'retry' mode")
         if self.mode == "route_to_stage" and self.route_to is None:
             raise ValueError("'route_to' must be a Stage or Pipeline for 'route_to_stage' mode")
+
+
+class PipelineConnectionError(LijndingError):
+    """Raised when two stages cannot be connected due to a type mismatch."""
+
+    def __init__(self, from_stage: "Stage", to_stage: "Stage", message: str):
+        self.from_stage = from_stage
+        self.to_stage = to_stage
+        self.message = message
+        super().__init__(
+            f"Cannot connect stage '{from_stage.name}' to '{to_stage.name}': {message}\n"
+            f"  - Output type of '{from_stage.name}': {from_stage.output_type}\n"
+            f"  - Input type of '{to_stage.name}': {to_stage.input_type}"
+        )

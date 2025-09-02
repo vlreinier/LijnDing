@@ -48,9 +48,12 @@ class Stage:
         self.hooks = hooks or Hooks()
         self.is_async = inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func)
 
+        self._input_type_override = input_type
+        self._output_type_override = output_type
+
         inferred_in, inferred_out, num_args = infer_types(func)
-        self.input_type = input_type or inferred_in
-        self.output_type = output_type or inferred_out
+        self.input_type = self._input_type_override or inferred_in
+        self.output_type = self._output_type_override or inferred_out
         self._inject_context = "context" in inspect.signature(func).parameters
 
         if num_args == 0:
