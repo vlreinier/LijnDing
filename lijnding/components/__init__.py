@@ -10,6 +10,7 @@ from .split import split
 from .filter import filter_
 from .io import read_from_file, write_to_file, save_progress
 from .http import http_request
+from .rabbitmq import rabbitmq_source, rabbitmq_sink
 
 __all__ = [
     "batch",
@@ -22,4 +23,6 @@ __all__ = [
     "write_to_file",
     "save_progress",
     "http_request",
+    "rabbitmq_source",
+    "rabbitmq_sink",
 ]

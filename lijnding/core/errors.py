@@ -1,6 +1,17 @@
 from __future__ import annotations
 from dataclasses import dataclass
 
+
+class LijndingError(Exception):
+    """Base class for all exceptions raised by the lijnding framework."""
+    pass
+
+
+class MissingDependencyError(LijndingError):
+    """Raised when a component requires a dependency that is not installed."""
+    pass
+
+
 @dataclass
 class ErrorPolicy:
     """
