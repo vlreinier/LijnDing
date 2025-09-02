@@ -88,7 +88,8 @@ class ProcessingRunner(BaseRunner):
         if workers <= 0:
             workers = mp.cpu_count()
 
-        q_in: mp.Queue = mp.Queue(maxsize=workers * 2)
+        buffer_size = stage.buffer_size or (workers * 2)
+        q_in: mp.Queue = mp.Queue(maxsize=buffer_size)
         q_out: mp.Queue = mp.Queue()
 
         context_proxies = (context._data, context._lock) if getattr(context, "_mp_safe", False) else None

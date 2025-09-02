@@ -26,9 +26,9 @@ class ThreadingRunner(BaseRunner):
         if workers <= 0:
             workers = 1
 
-        maxsize = workers * 2
-        q_in: queue.Queue[Any] = queue.Queue(maxsize=maxsize)
-        q_out: queue.Queue[Any] = queue.Queue(maxsize=maxsize)
+        buffer_size = stage.buffer_size or (workers * 2)
+        q_in: queue.Queue[Any] = queue.Queue(maxsize=buffer_size)
+        q_out: queue.Queue[Any] = queue.Queue(maxsize=buffer_size)
 
         def feeder():
             for item in iterable:
