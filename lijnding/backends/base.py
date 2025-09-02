@@ -53,15 +53,23 @@ class BaseRunner(ABC):
     def _run_aggregator(self, stage: "Stage", context: "Context", iterable: Iterable[Any]) -> Iterator[Any]:
         """
         Processes an entire iterable at once.
-        This is a concrete implementation that most runners can use directly,
-        as aggregation is typically a serial operation within the runner's context.
+        This implementation fully consumes the input stream to support the
+        `on_stream_end` hook, then calls the aggregator function.
         """
         stage.metrics["items_in"] += 1  # The whole iterable is one item
         start_time = time.perf_counter()
 
         try:
-            # The iterable itself is the single item for an aggregator
-            results = stage._invoke(context, iterable)
+            # Materialize the iterable to ensure the upstream pipeline completes.
+            # This is a trade-off for the `on_stream_end` hook functionality.
+            materialized_items = list(iterable)
+
+            # Call the stream end hook if it exists
+            if stage.hooks and stage.hooks.on_stream_end:
+                stage.hooks.on_stream_end(context)
+
+            # The materialized list is the single item for an aggregator
+            results = stage._invoke(context, materialized_items)
 
             # Ensure the result is iterable for downstream stages
             output_stream = ensure_iterable(results)

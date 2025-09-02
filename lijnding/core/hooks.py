@@ -22,9 +22,13 @@ class Hooks:
                         It can return a dictionary to be stored in `context.worker_state`.
         on_worker_exit: Called once per worker when it is about to terminate.
                         Useful for cleaning up resources created in `on_worker_init`.
+        on_stream_end: For aggregator stages, called after the input stream is
+                       exhausted, but before the main stage logic is called.
+                       Ideal for accessing final context values.
     """
     before_stage: Optional[Callable[["Stage", "Context", Any], None]] = None
     after_stage: Optional[Callable[["Stage", "Context", Any, Any, float], None]] = None
     on_error: Optional[Callable[["Stage", "Context", Any, BaseException, int], None]] = None
     on_worker_init: Optional[Callable[["Context"], Dict[str, Any]]] = None
     on_worker_exit: Optional[Callable[["Context"], None]] = None
+    on_stream_end: Optional[Callable[["Context"], None]] = None

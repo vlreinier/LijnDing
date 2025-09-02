@@ -1,47 +1,51 @@
 """
-An example demonstrating the use of the Context object to share state
-and collect metrics across a pipeline.
+An example demonstrating the use of the Context object and Hooks to share
+state and collect metrics across a pipeline.
 """
-from lijnding import stage, aggregator_stage, Context
+from lijnding import stage, aggregator_stage, Context, Hooks
+
+# --- Hook Definition ---
+
+def print_metrics_on_end(context: Context):
+    """
+    A hook function that will be called after the stream feeding into the
+    aggregator has been completely processed.
+    """
+    total_items = context.get("items_processed")
+    error_items = context.get("error_items")
+
+    print("\n--- Metrics from on_stream_end Hook ---")
+    print(f"Total items processed: {total_items}")
+    print(f"Items with errors: {error_items}")
+
+# --- Stage Definitions ---
 
 @stage
 def process_data(context: Context, data: dict):
     """
     A stage that processes data and uses the context to track metrics.
     """
-    # The context is automatically injected because it's in the function signature.
     context.inc("items_processed")
 
     if data.get("is_error"):
         context.inc("error_items")
-        return None # Skip this item
+        return None
 
-    # We can also store arbitrary data in the context
     if context.get("start_time") is None:
         import time
         context.set("start_time", time.time())
 
     return data["value"]
 
-@aggregator_stage
-def final_aggregator(context: Context, iterable):
+# The aggregator is now much simpler. It doesn't need to know about the context,
+# as the hook handles the metric printing.
+@aggregator_stage(hooks=Hooks(on_stream_end=print_metrics_on_end))
+def final_aggregator(iterable):
     """
-    An aggregator stage that can access the final context.
+    An aggregator stage that sums the values from the input stream.
+    The on_stream_end hook will print metrics before this function runs.
     """
-    # First, consume the iterable to ensure the upstream pipeline completes
-    values = list(iterable)
-
-    # This stage receives the context shared by the whole pipeline.
-    # Access the context *after* the upstream pipeline has finished.
-    total_items = context.get("items_processed")
-    error_items = context.get("error_items")
-
-    print("\n--- Metrics from Context ---")
-    print(f"Total items processed: {total_items}")
-    print(f"Items with errors: {error_items}")
-
-    # The iterable is still passed, so we can process it.
-    yield sum(values)
+    yield sum(iterable)
 
 
 def main():
@@ -52,7 +56,6 @@ def main():
         {"value": 30},
     ]
 
-    # The context object is created and managed by the pipeline automatically.
     pipeline = process_data | final_aggregator
 
     results, final_context = pipeline.collect(data)
