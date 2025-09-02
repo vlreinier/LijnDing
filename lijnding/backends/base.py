@@ -53,6 +53,9 @@ class BaseRunner(ABC):
         items_in = 0
         items_out = 0
 
+        if stage.hooks and stage.hooks.on_worker_init:
+            context.worker_state = stage.hooks.on_worker_init(context) or {}
+
         try:
             # Materialize the iterable to know the count and allow hooks.
             materialized_items = list(iterable)
@@ -75,8 +78,14 @@ class BaseRunner(ABC):
         except Exception as e:
             stage.metrics["errors"] += 1
             stage.logger.error("aggregator_error", error=str(e))
+            if stage.hooks and stage.hooks.on_error:
+                # For aggregators, the "item" is the whole list
+                stage.hooks.on_error(stage, context, materialized_items, e, 0)
             raise e
         finally:
+            if stage.hooks and stage.hooks.on_worker_exit:
+                stage.hooks.on_worker_exit(context)
+
             duration = time.perf_counter() - start_time
             stage.metrics["time_total"] += duration
             stage.logger.info(

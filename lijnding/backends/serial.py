@@ -25,6 +25,9 @@ class SerialRunner(BaseRunner):
         total_items_out = 0
         stream_start_time = time.perf_counter()
 
+        if stage.hooks and stage.hooks.on_worker_init:
+            context.worker_state = stage.hooks.on_worker_init(context) or {}
+
         try:
             for item in iterable:
                 total_items_in += 1
@@ -89,6 +92,9 @@ class SerialRunner(BaseRunner):
                         if stage.hooks and stage.hooks.after_stage:
                             stage.hooks.after_stage(stage, context, item, None, elapsed)
         finally:
+            if stage.hooks and stage.hooks.on_worker_exit:
+                stage.hooks.on_worker_exit(context)
+
             total_duration = time.perf_counter() - stream_start_time
             stage.logger.info(
                 "stream_finished",

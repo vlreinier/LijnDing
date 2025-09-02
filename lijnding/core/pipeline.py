@@ -77,7 +77,7 @@ class Pipeline:
 
     def _build_context(self, config: Optional[Config] = None) -> Context:
         needs_mp = "process" in self._get_required_backend_names()
-        return Context(mp_safe=needs_mp, config=config)
+        return Context(mp_safe=needs_mp, config=config, pipeline_name=self.name)
 
     def run(
         self, data: Optional[Iterable[Any]] = None, *, collect: bool = False, config_path: Optional[str] = None

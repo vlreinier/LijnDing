@@ -43,3 +43,6 @@ pythonpath = "."
 
 [project.scripts]
 lijnding = "lijnding.cli:cli"
+
+[tool.setuptools]
+packages = ["lijnding", "lijnding_gui"]
