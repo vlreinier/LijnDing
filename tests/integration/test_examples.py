@@ -11,6 +11,7 @@ def run_example(name: str):
         capture_output=True,
         text=True,
         check=True,
+        cwd="..",  # Run from the project root
     )
     return process.stdout
 
@@ -35,10 +36,10 @@ def test_context_and_metrics_example():
 def test_source_stages_example():
     """Tests the 01_basics/03_source_stages.py example."""
     output = run_example("01_basics/03_source_stages")
-    assert "--- Running pipeline that starts with a source ---" in output
-    assert "Result 1: [0, 10, 20, 30, 40]" in output
-    assert "--- Running pipeline with an in-line source ---" in output
-    assert "Result 2: ['A', 'B']" in output
+    assert "--- Example 1: A pipeline starting with a source stage ---" in output
+    assert "Result: [0, 10, 20, 30, 40]" in output
+    assert "--- Example 2: A pipeline with an in-line source ---" in output
+    assert "Result: ['A', 'B']" in output
 
 def test_threading_backend_example():
     """Tests the 02_backends/01_threading_backend.py example."""
