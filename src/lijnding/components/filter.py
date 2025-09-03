@@ -22,6 +22,6 @@ def filter_(condition: Callable[..., bool], *, name: str = "filter", **stage_kwa
     @stage(name=name, **stage_kwargs)
     def _filter_func(context: Context, item: Any) -> Any:
         if condition(item):
-            return item
+            yield item
 
     return _filter_func
