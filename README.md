@@ -25,39 +25,28 @@ lijnding is a lightweight, type-aware, and composable pipeline framework for Pyt
 
 The framework includes an optional web-based GUI for monitoring pipeline runs in real-time. This is an optional feature and `lijnding` remains fully functional in headless mode.
 
-### How it Works
-
-When you run a pipeline with the `--gui` flag, a "smart persistence" layer is activated. It writes a detailed event log for the pipeline to a unique directory under `.lijnding_runs/`. A separate FastAPI server reads these logs and provides a REST API for the Svelte-based frontend, which you can view in your browser.
-
 ### Quick Start
 
-1.  **Install GUI Dependencies**: The GUI components are in the `packages/` directory. You will need to install their dependencies separately.
+1.  **Install with the `[gui]` extra**:
+    To include the web GUI and its dependencies, install the framework with the `[gui]` extra:
     ```bash
-    # Install backend dependencies
-    pip install -e ./packages/lijnding-fastapi
-    # Install frontend dependencies
-    npm install --prefix ./packages/lijnding-svelte
+    pip install .[gui]
     ```
 
-2.  **Start the GUI Services**:
+2.  **Start the GUI Server**:
+    Run the following command to start the web server:
     ```bash
-    # Start the FastAPI backend
-    python -m uvicorn lijnding_fastapi.main:app --reload --app-dir ./packages/lijnding-fastapi
-
-    # In a new terminal, start the Svelte frontend
-    npm run dev --prefix ./packages/lijnding-svelte
+    python -m uvicorn lijnding.gui.main:app --reload
     ```
-    The GUI will be available at `http://localhost:5173`.
+    The GUI will be available at `http://localhost:8000`.
 
 3.  **Run a Pipeline with Monitoring**:
+    Use the `lijnding` CLI with the `--gui` flag. This will write event logs to the `.lijnding_runs/` directory, which the GUI reads.
     ```bash
-    # Use the `lijnding` CLI with the --gui flag
     # Note: We use `python -m` to ensure correct module resolution
     python -m lijnding.cli run examples.01_basics.01_simple_pipeline:pipeline --gui
     ```
     The new run will appear in the web interface.
-
-For more detailed information on the GUI, the persistence layer, and security considerations for deployment, please see the **[GUI and Persistence Documentation](./docs/gui-and-persistence.md)**.
 
 ## Basic Usage
 
@@ -220,29 +209,26 @@ results_no_config, _ = pipeline.collect(["world"])
 To install the framework from source, clone the repository and run the following command in the project root:
 
 ```bash
+# For the core framework
 pip install .
+
+# To include optional features, use extras:
+pip install .[http]          # For the HTTP component
+pip install .[gui]           # For the Web GUI
+pip install .[all]           # To install everything
 ```
-
-### Optional Dependencies
-
-Some components require extra dependencies. You can install them as needed:
-
-- **HTTP Component**: To use the `http_request` component, install the `[http]` extra:
-  ```bash
-  pip install .[http]
-  ```
 
 ## Development
 
-To set up the project for development, it's recommended to create a virtual environment and install the package in editable mode with its test dependencies.
+To set up the project for development, it's recommended to create a virtual environment and install the package in editable mode with all test and development dependencies.
 
 ```bash
 # Create and activate a virtual environment (e.g., using venv)
 python -m venv .venv
 source .venv/bin/activate  # On Windows, use `.venv\Scripts\activate`
 
-# Install the project in editable mode with test dependencies
-pip install -e .[test]
+# Install in editable mode with all extras for testing
+pip install -e .[all,test]
 ```
 
 ### Running Tests

@@ -24,6 +24,33 @@ from typeguard import typechecked
 
 
 class Stage:
+    """
+    Represents a single processing step in a LijnDing pipeline.
+
+    A `Stage` is a wrapper around a Python function that adds execution
+    backends, error handling, logging, and other features. Stages are the
+    fundamental building blocks of `Pipeline` objects.
+
+    Users typically do not create `Stage` objects directly. Instead, they
+    are created by using the `@stage` or `@aggregator_stage` decorators.
+
+    Args:
+        func (Callable): The function to be executed by the stage.
+        name (Optional[str]): A custom name for the stage. If not provided,
+            the function's name is used.
+        stage_type (str): The type of stage. Can be 'itemwise', 'aggregator',
+            or 'source'.
+        backend (str): The execution backend to use ('serial', 'thread', etc.).
+        workers (int): The number of parallel workers for concurrent backends.
+        buffer_size (Optional[int]): The size of the input buffer for
+            concurrent backends.
+        input_type (Optional[Type]): The expected input type for the stage. If
+            not provided, it will be inferred from type hints.
+        output_type (Optional[Type]): The expected output type for the stage.
+            If not provided, it will be inferred.
+        error_policy (Optional[ErrorPolicy]): The error handling policy.
+        hooks (Optional[Hooks]): A collection of hooks for monitoring.
+    """
     def __init__(
         self,
         func: Callable[..., Any],
@@ -174,33 +201,56 @@ def stage(
     hooks: Optional[Hooks] = None,
 ) -> Union[Stage, Callable[[Callable[..., Any]], Stage]]:
     """
-    A decorator to create a pipeline Stage from a function.
+    A decorator to create a pipeline `Stage` from a function.
 
-    This is the primary way to define the building blocks of a pipeline.
+    This is the primary way to define the building blocks of a pipeline. It can
+    be used with or without arguments.
+
+    Example:
+        >>> @stage
+        ... def to_upper(text: str) -> str:
+        ...     return text.upper()
+        ...
+        >>> @stage(backend="thread", workers=4)
+        ... def process_item(item: int) -> int:
+        ...     # ... heavy I/O operation ...
+        ...     return item * 2
 
     Args:
+        _func (Optional[Callable]): The function to decorate. This is handled
+            automatically when the decorator is used.
         name (Optional[str]): A custom name for the stage. If not provided,
             the function's name is used.
-        stage_type (str): The type of stage. Can be 'itemwise', 'aggregator',
-            or 'source'. Defaults to 'itemwise'.
-        backend (str): The execution backend to use for this stage.
-            Defaults to 'serial'.
+        stage_type (str): The type of stage, which determines how it processes
+            data. One of:
+            - 'itemwise' (default): The function is called for each item in
+              the input stream.
+            - 'aggregator': The function is called once with an iterator for
+              the entire input stream.
+            - 'source': The function is a generator that produces the initial
+              data for the pipeline. It takes no input items.
+        backend (str): The execution backend to use for this stage. Defaults
+            to 'serial'.
         workers (int): The number of parallel workers to use for concurrent
             backends ('thread', 'process'). Defaults to 1.
-        buffer_size (Optional[int]): The maximum number of items to buffer in
-            the input queue for concurrent backends. If not provided, a
-            default value (typically `workers * 2`) is used.
-        input_type (Optional[Type[Any]]): The expected input type for this
-            stage. Used for static analysis.
-        output_type (Optional[Type[Any]]): The expected output type for this
-            stage. Used for static analysis.
+        buffer_size (Optional[int]): The maximum number of items to buffer
+            in the input queue for concurrent backends. If not provided, a
+            default value is used.
+        input_type (Optional[Type[Any]]): Manually specify the stage's input
+            type. If `None`, it's inferred from the function's type hints.
+        output_type (Optional[Type[Any]]): Manually specify the stage's
+            output type. If `None`, it's inferred from the function's type
+            hints.
         error_policy (Optional[ErrorPolicy]): The error handling policy for
             this stage.
         hooks (Optional[Hooks]): A collection of hooks for monitoring and
             tracing.
 
     Returns:
-        A Stage object or a decorator that returns a Stage object.
+        Union[Stage, Callable[[Callable], Stage]]:
+        - If used as `@stage`, it returns a `Stage` instance.
+        - If used as `@stage(...)`, it returns a decorator that, when applied,
+          creates and returns a `Stage` instance.
     """
     def wrapper(func: Callable[..., Any]) -> Stage:
         return Stage(
@@ -234,13 +284,38 @@ def aggregator_stage(
     hooks: Optional[Hooks] = None,
 ) -> Union[Stage, Callable[[Callable[..., Any]], Stage]]:
     """
-    A decorator to create an aggregator stage.
+    A decorator to create an 'aggregator' stage.
 
     This is a convenience decorator that is equivalent to using `@stage`
-    with `stage_type="aggregator"`. Aggregator stages receive the entire
-    input stream as a single iterable argument.
+    with `stage_type="aggregator"`.
 
-    All arguments from the `@stage` decorator are also accepted here.
+    An aggregator stage receives the entire input stream from the previous
+    stage as a single iterable argument. It is useful for operations that
+    need to consider all items at once, such as calculating a sum, average,
+    or grouping items.
+
+    Example:
+        >>> @aggregator_stage
+        ... def sum_all(numbers: Iterable[int]) -> int:
+        ...     return sum(numbers)
+
+    Args:
+        _func (Optional[Callable]): The function to decorate.
+        name (Optional[str]): A custom name for the stage.
+        backend (str): The execution backend ('serial', 'thread', etc.).
+        workers (int): The number of workers for concurrent backends.
+        buffer_size (Optional[int]): The input buffer size for concurrent
+            backends.
+        input_type (Optional[Type[Any]]): Manually specify the stage's input
+            type.
+        output_type (Optional[Type[Any]]): Manually specify the stage's
+            output type.
+        error_policy (Optional[ErrorPolicy]): The error handling policy.
+        hooks (Optional[Hooks]): A collection of hooks for monitoring.
+
+    Returns:
+        Union[Stage, Callable[[Callable], Stage]]: An initialized `Stage` or
+        a decorator to produce one.
     """
     # We ignore the type checking error here because we are intentionally
     # passing the `_func` argument to the `stage` decorator, which knows
