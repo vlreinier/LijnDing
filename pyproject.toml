@@ -37,7 +37,6 @@ test = [
 ]
 
 [tool.pytest.ini_options]
-pythonpath = "src"
 
 [project.scripts]
 lijnding = "lijnding.cli:cli"
