@@ -214,23 +214,21 @@ pip install ./ui
 
 ## Development
 
-To set up the project for development, it's recommended to create a virtual environment and install all packages in editable mode.
+To set up a complete development environment with all components and test dependencies, it's recommended to create a virtual environment and install all packages in editable mode.
+
+**Note**: You must install the core package, all components, and the test dependencies to run the full test suite.
 
 ```bash
-# Create and activate a virtual environment
+# 1. Create and activate a virtual environment
 python -m venv .venv
 source .venv/bin/activate  # On Windows, use `.venv\Scripts\activate`
 
-# Install the core package in editable mode
-pip install -e .
-
-# Install all components and the UI in editable mode
+# 2. Install all packages in editable mode
+#    This includes the core framework, all optional components, and test dependencies.
+pip install -e .[test]
 pip install -e ./components/http
 pip install -e ./components/rabbitmq
 pip install -e ./ui
-
-# Install test dependencies
-pip install -e .[test]
 ```
 
 ### Running Tests
