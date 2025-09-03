@@ -106,53 +106,88 @@ class BaseRunner(ABC):
             )
 
 
-def _handle_error_routing(stage: "Stage", context: "Context", item: Any):
-    """Helper function to route a failed item to a dead-letter stage."""
+def _handle_route_to_pipeline(stage: "Stage", context: "Context", item: Any):
+    """Helper function to route a failed item to a separate pipeline."""
     # Local imports to avoid circular dependencies
     from .runner_registry import get_runner
     from ..core.pipeline import Pipeline
+    from ..core.stage import Stage
 
-    if not stage.error_policy.route_to:
+    if not stage.error_policy.route_to_pipeline:
         return
 
-    dead_letter_stage = stage.error_policy.route_to
-    if isinstance(dead_letter_stage, Pipeline):
-        dead_letter_stage = dead_letter_stage.to_stage()
+    pipeline = stage.error_policy.route_to_pipeline
+    if isinstance(pipeline, Stage):
+        pipeline = Pipeline([pipeline])
 
-    runner = get_runner(dead_letter_stage.backend)
-    dead_letter_stream = runner.run(dead_letter_stage, context, [item])
+    # We can just call the pipeline's collect method directly.
+    # This is simpler than manually getting a runner.
+    pipeline.collect([item])
 
-    # Consume the stream to ensure it executes
-    for _ in dead_letter_stream:
+
+def _handle_transform_and_retry(stage: "Stage", context: "Context", item: Any) -> Any:
+    """
+    Helper function to route a failed item to a transformer pipeline and
+    return the transformed item.
+    """
+    from ..core.pipeline import Pipeline
+    from ..core.stage import Stage
+
+    if not stage.error_policy.route_to_pipeline:
+        # This should be caught by the ErrorPolicy's validation, but as a safeguard:
+        raise ValueError("Missing 'route_to_pipeline' for transform_and_retry mode.")
+
+    pipeline = stage.error_policy.route_to_pipeline
+    if isinstance(pipeline, Stage):
+        pipeline = Pipeline([pipeline])
+
+    results, _ = pipeline.collect([item])
+    if len(results) != 1:
+        raise ValueError(
+            f"Transformer pipeline for 'route_to_pipeline_and_retry' must "
+            f"produce exactly one item, but produced {len(results)}."
+        )
+    return results[0]
+
+
+async def _handle_route_to_pipeline_async(stage: "Stage", context: "Context", item: Any):
+    """Async helper to route a failed item to a separate pipeline."""
+    from ..core.pipeline import Pipeline
+    from ..core.stage import Stage
+
+    if not stage.error_policy.route_to_pipeline:
+        return
+
+    pipeline = stage.error_policy.route_to_pipeline
+    if isinstance(pipeline, Stage):
+        pipeline = Pipeline([pipeline])
+
+    # Run the pipeline and consume the async stream to ensure it executes.
+    stream, _ = await pipeline.run_async([item])
+    async for _ in stream:
         pass
 
 
-async def _handle_error_routing_async(stage: "Stage", context: "Context", item: Any):
-    """Async helper function to route a failed item to a dead-letter stage."""
-    # Local imports to avoid circular dependencies
-    import asyncio
-    from .runner_registry import get_runner
+async def _handle_transform_and_retry_async(stage: "Stage", context: "Context", item: Any) -> Any:
+    """
+    Async helper to route a failed item to a transformer pipeline and
+    return the transformed item.
+    """
     from ..core.pipeline import Pipeline
+    from ..core.stage import Stage
 
-    if not stage.error_policy.route_to:
-        return
+    if not stage.error_policy.route_to_pipeline:
+        raise ValueError("Missing 'route_to_pipeline' for transform_and_retry mode.")
 
-    dead_letter_stage = stage.error_policy.route_to
-    if isinstance(dead_letter_stage, Pipeline):
-        dead_letter_stage = dead_letter_stage.to_stage()
+    pipeline = stage.error_policy.route_to_pipeline
+    if isinstance(pipeline, Stage):
+        pipeline = Pipeline([pipeline])
 
-    runner = get_runner(dead_letter_stage.backend)
-
-    # Helper to convert sync iterable to async
-    async def _to_async(it):
-        for i in it:
-            yield i
-
-    if hasattr(runner, 'run_async'):
-        stream = await runner.run_async(dead_letter_stage, context, _to_async([item]))
-        async for _ in stream:
-            pass
-    else:
-        # For a sync dead-letter stage, we can run its .collect() method in a
-        # thread to ensure it executes without blocking the event loop.
-        await asyncio.to_thread(dead_letter_stage.collect, [item], context=context)
+    stream, _ = await pipeline.run_async([item])
+    results = [res async for res in stream]
+    if len(results) != 1:
+        raise ValueError(
+            f"Transformer pipeline for 'route_to_pipeline_and_retry' must "
+            f"produce exactly one item, but produced {len(results)}."
+        )
+    return results[0]

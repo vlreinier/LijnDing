@@ -4,7 +4,11 @@ import time
 from typing import TYPE_CHECKING, Any, Iterable, Iterator
 
 from ..core.utils import ensure_iterable
-from .base import BaseRunner, _handle_error_routing
+from .base import (
+    BaseRunner,
+    _handle_route_to_pipeline,
+    _handle_transform_and_retry,
+)
 
 if TYPE_CHECKING:
     from ..core.context import Context
@@ -75,15 +79,22 @@ class SerialRunner(BaseRunner):
                             stage.hooks.on_error(stage, context, item, e, attempts)
 
                         policy = stage.error_policy
-                        if policy.mode == "route_to_stage":
-                            _handle_error_routing(stage, context, item)
+                        if policy.mode == "route_to_pipeline":
+                            _handle_route_to_pipeline(stage, context, item)
                             break
-                        if policy.mode == "retry" and attempts <= policy.retries:
+                        elif policy.mode == "route_to_pipeline_and_retry" and attempts <= policy.retries:
+                            item = _handle_transform_and_retry(stage, context, item)
                             if policy.backoff > 0:
                                 time.sleep(policy.backoff * attempts)
                             continue
-                        if policy.mode == "skip":
+                        elif policy.mode == "retry" and attempts <= policy.retries:
+                            if policy.backoff > 0:
+                                time.sleep(policy.backoff * attempts)
+                            continue
+                        elif policy.mode == "skip":
                             break
+
+                        # Default is to fail
                         raise e
 
                     finally:

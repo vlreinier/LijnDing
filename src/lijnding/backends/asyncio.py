@@ -4,7 +4,11 @@ import asyncio
 import inspect
 from typing import TYPE_CHECKING, Any, AsyncIterator, Iterable, Iterator
 
-from .base import BaseRunner, _handle_error_routing_async
+from .base import (
+    BaseRunner,
+    _handle_route_to_pipeline_async,
+    _handle_transform_and_retry_async,
+)
 from ..core.utils import ensure_iterable
 
 if TYPE_CHECKING:
@@ -81,51 +85,57 @@ class AsyncioRunner(BaseRunner):
                 total_items_in += 1
                 stage.metrics["items_in"] += 1
                 item_start_time = asyncio.get_running_loop().time()
+                attempts = 0
 
-                try:
-                    count_out = 0
-                    if stage.is_async:
-                        result_obj = stage._invoke(context, item)
-                        if inspect.isasyncgen(result_obj):
-                            async for res in result_obj:
-                                yield res
-                                count_out += 1
-                        else: # Coroutine
-                            results = await result_obj
+                while True: # Retry loop
+                    try:
+                        count_out = 0
+                        if stage.is_async:
+                            result_obj = stage._invoke(context, item)
+                            if inspect.isasyncgen(result_obj):
+                                async for res in result_obj:
+                                    yield res
+                                    count_out += 1
+                            else: # Coroutine
+                                results = await result_obj
+                                for res in ensure_iterable(results):
+                                    yield res
+                                    count_out += 1
+                        else:  # Sync function
+                            results = await asyncio.to_thread(stage._invoke, context, item)
                             for res in ensure_iterable(results):
                                 yield res
                                 count_out += 1
-                    else:  # Sync function
-                        results = await asyncio.to_thread(stage._invoke, context, item)
-                        for res in ensure_iterable(results):
-                            yield res
-                            count_out += 1
 
-                    stage.metrics["items_out"] += count_out
-                    total_items_out += count_out
-                    item_elapsed = asyncio.get_running_loop().time() - item_start_time
-                    stage.logger.debug(
-                        "item_processed",
-                        item_in=total_items_in,
-                        items_out=count_out,
-                        duration=round(item_elapsed, 4),
-                    )
+                        stage.metrics["items_out"] += count_out
+                        total_items_out += count_out
+                        item_elapsed = asyncio.get_running_loop().time() - item_start_time
+                        stage.logger.debug("item_processed", items_out=count_out, duration=round(item_elapsed, 4))
+                        break # Success
 
-                except Exception as e:
-                    stage.metrics["errors"] += 1
-                    item_elapsed = asyncio.get_running_loop().time() - item_start_time
-                    stage.logger.warning(
-                        "item_error",
-                        item_in=total_items_in,
-                        error=str(e),
-                        duration=round(item_elapsed, 4),
-                    )
+                    except Exception as e:
+                        attempts += 1
+                        stage.metrics["errors"] += 1
+                        stage.logger.warning("item_error", error=str(e), attempts=attempts)
 
-                    policy = stage.error_policy
-                    if policy.mode == "route_to_stage":
-                        await _handle_error_routing_async(stage, context, item)
-                    elif policy.mode != "skip":
-                        raise e # Fail by default
+                        policy = stage.error_policy
+                        if policy.mode == "route_to_pipeline":
+                            await _handle_route_to_pipeline_async(stage, context, item)
+                            break
+                        elif policy.mode == "route_to_pipeline_and_retry" and attempts <= policy.retries:
+                            item = await _handle_transform_and_retry_async(stage, context, item)
+                            if policy.backoff > 0:
+                                await asyncio.sleep(policy.backoff * attempts)
+                            continue
+                        elif policy.mode == "retry" and attempts <= policy.retries:
+                            if policy.backoff > 0:
+                                await asyncio.sleep(policy.backoff * attempts)
+                            continue
+                        elif policy.mode == "skip":
+                            break
+
+                        # Fail by default
+                        raise e
         finally:
             total_duration = asyncio.get_running_loop().time() - stream_start_time
             stage.logger.info(

@@ -5,7 +5,11 @@ import threading
 from typing import TYPE_CHECKING, Any, Iterable, Iterator
 
 from ..core.utils import ensure_iterable
-from .base import BaseRunner, _handle_error_routing
+from .base import (
+    BaseRunner,
+    _handle_route_to_pipeline,
+    _handle_transform_and_retry,
+)
 
 if TYPE_CHECKING:
     from ..core.context import Context
@@ -62,57 +66,78 @@ class ThreadingRunner(BaseRunner):
                         break
 
                     item_start_time = time.perf_counter()
-                    try:
-                        stage.metrics["items_in"] += 1
+                    stage.metrics["items_in"] += 1
+                    attempts = 0
 
-                        if stage.is_async:
-                            import asyncio
+                    while True: # Retry loop
+                        try:
+                            if stage.is_async:
+                                import asyncio
+                                import inspect
 
-                            async def run_async_stage():
-                                # We are in a thread, so we can't use the main event loop.
-                                # We need to create a new one.
+                                async def run_async_stage():
+                                    result_obj = stage._invoke(worker_context, item)
+                                    count_out = 0
+                                    if inspect.isasyncgen(result_obj):
+                                        async for res in result_obj:
+                                            stage.metrics["items_out"] += 1
+                                            count_out += 1
+                                            q_out.put(res)
+                                    else:  # Coroutine
+                                        results = await result_obj
+                                        for res in ensure_iterable(results):
+                                            stage.metrics["items_out"] += 1
+                                            count_out += 1
+                                            q_out.put(res)
+                                    return count_out
+
+                                loop = asyncio.new_event_loop()
+                                asyncio.set_event_loop(loop)
+                                try:
+                                    count_out = loop.run_until_complete(run_async_stage())
+                                finally:
+                                    loop.close()
+                            else:
                                 results = stage._invoke(worker_context, item)
                                 output_stream = ensure_iterable(results)
-
                                 count_out = 0
-                                async for res in output_stream:
+                                for res in output_stream:
                                     stage.metrics["items_out"] += 1
                                     count_out += 1
                                     q_out.put(res)
-                                return count_out
 
-                            # Create and run a new event loop in this thread
-                            loop = asyncio.new_event_loop()
-                            asyncio.set_event_loop(loop)
-                            try:
-                                count_out = loop.run_until_complete(run_async_stage())
-                            finally:
-                                loop.close()
-                        else:
-                            results = stage._invoke(worker_context, item)
-                            output_stream = ensure_iterable(results)
+                            item_elapsed = time.perf_counter() - item_start_time
+                            logger.debug("item_processed", items_out=count_out, duration=round(item_elapsed, 4))
+                            break  # Success, exit retry loop
 
-                            count_out = 0
-                            for res in output_stream:
-                                stage.metrics["items_out"] += 1
-                                count_out += 1
-                                q_out.put(res)
+                        except Exception as e:
+                            attempts += 1
+                            stage.metrics["errors"] += 1
+                            logger.warning("item_error", error=str(e), attempts=attempts)
 
-                        item_elapsed = time.perf_counter() - item_start_time
-                        logger.debug("item_processed", items_out=count_out, duration=round(item_elapsed, 4))
+                            policy = stage.error_policy
+                            if policy.mode == "route_to_pipeline":
+                                _handle_route_to_pipeline(stage, worker_context, item)
+                                break
+                            elif policy.mode == "route_to_pipeline_and_retry" and attempts <= policy.retries:
+                                item = _handle_transform_and_retry(stage, worker_context, item)
+                                if policy.backoff > 0:
+                                    time.sleep(policy.backoff * attempts)
+                                continue
+                            elif policy.mode == "retry" and attempts <= policy.retries:
+                                if policy.backoff > 0:
+                                    time.sleep(policy.backoff * attempts)
+                                continue
+                            elif policy.mode == "skip":
+                                break
 
-                    except Exception as e:
-                        stage.metrics["errors"] += 1
-                        item_elapsed = time.perf_counter() - item_start_time
-                        logger.warning("item_error", error=str(e), duration=round(item_elapsed, 4))
-
-                        policy = stage.error_policy
-                        if policy.mode == "route_to_stage":
-                            _handle_error_routing(stage, worker_context, item)
-                        else:
+                            # If no policy handles it, raise to the main thread
                             q_out.put(e)
-                    finally:
-                        q_in.task_done()
+                            # Break the retry loop as we've escalated the error
+                            break
+                        finally:
+                            item_elapsed = time.perf_counter() - item_start_time
+                            stage.metrics["time_total"] += item_elapsed
             except Exception as e:
                 logger.error("worker_error", error=str(e))
                 q_out.put(e)

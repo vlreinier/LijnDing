@@ -6,7 +6,7 @@ import time
 from typing import TYPE_CHECKING, Any, Iterable, Iterator
 import dill as serializer
 
-from .base import BaseRunner, _handle_error_routing
+from .base import BaseRunner, _handle_route_to_pipeline
 
 if TYPE_CHECKING:
     from ..core.context import Context
@@ -135,8 +135,8 @@ class ProcessingRunner(BaseRunner):
                             raise e
 
                         policy = stage.error_policy
-                        if policy.mode == "route_to_stage":
-                            _handle_error_routing(stage, context, item)
+                        if policy.mode == "route_to_pipeline":
+                            _handle_route_to_pipeline(stage, context, item)
                         elif policy.mode != "skip":
                             raise e
                         continue
