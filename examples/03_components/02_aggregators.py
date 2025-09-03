@@ -2,7 +2,8 @@
 An example demonstrating the use of aggregator components like `batch` and `reduce`.
 """
 from lijnding.core import stage, aggregator_stage
-from lijnding.components import batch, reduce
+from lijnding.components.batch import batch
+from lijnding.components.reduce import reduce
 
 # --- A simple pipeline demonstrating batching and reducing ---
 

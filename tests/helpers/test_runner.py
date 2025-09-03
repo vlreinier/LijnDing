@@ -1,5 +1,6 @@
 from typing import Iterable, Any, Tuple, List
 from lijnding.core import Pipeline, Context
+import inspect
 
 # A list of all backends to be tested
 BACKENDS = ["serial", "thread", "process", "async"]
@@ -9,7 +10,8 @@ async def run_pipeline(pipeline: Pipeline, data: Iterable[Any]) -> Tuple[List[An
     """
     Runs a pipeline and collects its results, automatically handling sync and async backends.
     """
-    if "async" in pipeline._get_required_backend_names():
+    is_async_data = inspect.isasyncgen(data)
+    if "async" in pipeline._get_required_backend_names() or is_async_data:
         stream, context = await pipeline.run_async(data)
         results = [item async for item in stream]
         return results, context

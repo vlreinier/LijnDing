@@ -1,6 +1,6 @@
 import pytest
 from lijnding.core import Pipeline, stage
-from lijnding.components import branch
+from lijnding.components.branch import branch
 from tests.helpers.test_runner import run_pipeline, BACKENDS
 
 

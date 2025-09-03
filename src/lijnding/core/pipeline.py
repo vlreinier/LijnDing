@@ -8,6 +8,7 @@ from .context import Context
 from .errors import PipelineConnectionError
 from .stage import Stage, stage
 from .log import get_logger
+from .utils import AsyncToSyncIterator
 from ..config import Config, load_config
 from typing import Iterable
 
@@ -147,9 +148,13 @@ class Pipeline:
                     stream = runner.run_async(stage, context, stream)
                 else:
                     # This is a synchronous bridge for running a sync stage in an async pipeline.
-                    items = [item async for item in stream]
+                    # We use the AsyncToSyncIterator to bridge the async and sync worlds
+                    # in a streaming, memory-efficient way.
                     loop = asyncio.get_running_loop()
+                    sync_iterable = AsyncToSyncIterator(stream, loop)
 
+                    # We still run the synchronous stage in a thread pool to avoid
+                    # blocking the event loop while it processes.
                     def run_sync_stage_in_thread():
                         # This function will run in a separate thread.
                         # If the runner needs its own event loop, we create one here.
@@ -157,16 +162,13 @@ class Pipeline:
                             new_loop = asyncio.new_event_loop()
                             asyncio.set_event_loop(new_loop)
                             try:
-                                # We can now safely run async code if the runner needs it,
-                                # though for a sync runner, it just runs its course.
-                                return list(runner.run(stage, context, items))
+                                return list(runner.run(stage, context, sync_iterable))
                             finally:
                                 new_loop.close()
                         else:
                             # Otherwise, just run it directly.
-                            return list(runner.run(stage, context, items))
+                            return list(runner.run(stage, context, sync_iterable))
 
-                    # We run the synchronous stage in a thread pool to avoid blocking the main event loop.
                     sync_results = await loop.run_in_executor(None, run_sync_stage_in_thread)
                     stream = _to_async(sync_results)
             return stream, context
