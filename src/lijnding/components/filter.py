@@ -1,25 +1,27 @@
-from typing import Callable, Any, Generator
+from __future__ import annotations
+from typing import Any, Callable, TYPE_CHECKING
+from ..core.stage import Stage, stage
 
-from ..core.stage import stage, Stage
+if TYPE_CHECKING:
+    from ..core.context import Context
 
 
-def filter_(predicate: Callable[[Any], bool], *, name: str = "filter", **stage_kwargs) -> Stage:
+def filter_(condition: Callable[..., bool], *, name: str = "filter", **stage_kwargs) -> Stage:
     """
-    Creates a pipeline stage that filters items based on a predicate.
+    Creates a stage that filters items from a stream based on a condition.
 
-    This component yields an item only if the predicate function returns True.
+    Args:
+        condition: A callable that returns True for items to keep.
+        name: An optional name for the stage.
+        **stage_kwargs: Additional keyword arguments for the @stage decorator.
 
-    :param predicate: A callable that accepts an item and returns a boolean.
-                      If True, the item is passed through; otherwise, it is discarded.
-    :param name: An optional name for the stage.
-    :param stage_kwargs: Additional keyword arguments to pass to the @stage decorator
-                         (e.g., `backend`, `workers`).
-    :return: A new `Stage` that performs the filtering logic.
+    Returns:
+        A Stage that filters items.
     """
-    @stage(name=name, stage_type="itemwise", **stage_kwargs)
-    def _filter_stage(item: Any) -> Generator[Any, None, None]:
-        """The actual stage function that applies the predicate."""
-        if predicate(item):
-            yield item
 
-    return _filter_stage
+    @stage(name=name, **stage_kwargs)
+    def _filter_func(context: Context, item: Any) -> Any:
+        if condition(item):
+            return item
+
+    return _filter_func

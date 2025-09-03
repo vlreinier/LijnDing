@@ -6,7 +6,7 @@ import functools
 from ..core.stage import Stage, aggregator_stage
 
 
-def reduce(func: Callable[[Any, Any], Any], initializer: Optional[Any] = None) -> Stage:
+def reduce_(func: Callable[[Any, Any], Any], initializer: Optional[Any] = None) -> Stage:
     """
     Creates a stage that reduces an entire input stream to a single value.
 
