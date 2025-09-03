@@ -1,5 +1,6 @@
 import subprocess
 import sys
+import os
 from pathlib import Path
 
 import pytest
@@ -16,7 +17,15 @@ def run_cli_command(args: list[str]) -> subprocess.CompletedProcess:
     """Helper function to run the CLI command via `python -m`."""
     command = [PYTHON_EXECUTABLE, "-m", "lijnding.cli"] + args
     # Setting PYTHONPATH to ensure the local `lijnding` package is found
-    env = {"PYTHONPATH": str(PROJECT_ROOT)}
+    env = os.environ.copy()
+    # Add the project's `src` directory to PYTHONPATH, and the project root
+    # for the examples
+    python_path = f"{PROJECT_ROOT / 'src'}{os.pathsep}{PROJECT_ROOT}"
+    if "PYTHONPATH" in env:
+        env["PYTHONPATH"] = f"{python_path}{os.pathsep}{env['PYTHONPATH']}"
+    else:
+        env["PYTHONPATH"] = python_path
+
     return subprocess.run(
         command,
         capture_output=True,
