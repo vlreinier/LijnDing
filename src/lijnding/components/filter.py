@@ -1,5 +1,9 @@
+"""
+This module provides the `filter_` component, which is used to selectively
+keep or discard items from a pipeline stream based on a condition.
+"""
 from __future__ import annotations
-from typing import Any, Callable, TYPE_CHECKING
+from typing import Any, Callable, TYPE_CHECKING, Generator
 from ..core.stage import Stage, stage
 
 if TYPE_CHECKING:
@@ -16,11 +20,11 @@ def filter_(condition: Callable[..., bool], *, name: str = "filter", **stage_kwa
         **stage_kwargs: Additional keyword arguments for the @stage decorator.
 
     Returns:
-        A Stage that filters items.
+        A Stage that yields items for which the condition is true.
     """
 
     @stage(name=name, **stage_kwargs)
-    def _filter_func(context: Context, item: Any) -> Any:
+    def _filter_func(context: Context, item: Any) -> Generator[Any, None, None]:
         if condition(item):
             yield item
 

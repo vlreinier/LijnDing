@@ -1,3 +1,7 @@
+"""
+This module provides the `while_loop` component, which allows for creating
+loops within a pipeline that execute as long as a condition is true.
+"""
 from __future__ import annotations
 
 from typing import Any, Callable, Union, Iterable, AsyncIterator, List
@@ -40,16 +44,20 @@ def while_loop(condition: Callable[[Any], bool], body: Union[Stage, Pipeline]) -
         @stage(name="While", stage_type="itemwise", backend="async")
         async def _while_func_async(context: Context, item: Any) -> AsyncIterator[Any]:
             current_item = item
+            # The loop first checks the condition, then executes the body.
             while condition(current_item):
                 stream, _ = await body_pipeline.run_async(data=[current_item])
                 results: List[Any] = [res async for res in stream]
 
+                # The body must produce a single output item to be used in the
+                # next iteration's condition check.
                 if len(results) != 1:
                     raise ValueError(
                         f"The body of a while_loop must produce exactly one item, "
                         f"but it produced {len(results)} items."
                     )
                 current_item = results[0]
+            # Yield the final item after the loop terminates.
             yield current_item
 
         return _while_func_async
@@ -57,15 +65,19 @@ def while_loop(condition: Callable[[Any], bool], body: Union[Stage, Pipeline]) -
         @stage(name="While", stage_type="itemwise")
         def _while_func_sync(context: Context, item: Any) -> Iterable[Any]:
             current_item = item
+            # The loop first checks the condition, then executes the body.
             while condition(current_item):
                 results, _ = body_pipeline.collect(data=[current_item])
 
+                # The body must produce a single output item to be used in the
+                # next iteration's condition check.
                 if len(results) != 1:
                     raise ValueError(
                         f"The body of a while_loop must produce exactly one item, "
                         f"but it produced {len(results)} items."
                     )
                 current_item = results[0]
+            # Yield the final item after the loop terminates.
             yield current_item
 
         return _while_func_sync

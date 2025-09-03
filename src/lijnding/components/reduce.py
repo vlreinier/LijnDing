@@ -1,6 +1,10 @@
+"""
+This module provides the `reduce_` component, which is used to apply a
+reduction function across all items in a stream to produce a single output.
+"""
 from __future__ import annotations
 
-from typing import Any, Callable, Iterable, Optional
+from typing import Any, Callable, Iterable, Optional, Generator
 import functools
 
 from ..core.stage import Stage, aggregator_stage
@@ -23,22 +27,22 @@ def reduce_(func: Callable[[Any, Any], Any], initializer: Optional[Any] = None) 
     """
 
     @aggregator_stage(name="reduce")
-    def _reduce_func(iterable: Iterable[Any]) -> Any:
-        """The underlying function for the reduce stage."""
+    def _reduce_func(iterable: Iterable[Any]) -> Generator[Any, None, None]:
         iterator = iter(iterable)
 
         if initializer is None:
             try:
-                # Get the first item as the initializer
+                # If no initializer is provided, the first item of the iterable
+                # is used as the starting value.
                 initial_value = next(iterator)
             except StopIteration:
-                # If the iterable is empty and there's no initializer,
-                # yield nothing.
-                return None
+                # If the iterable is empty and there's no initializer, the
+                # reduction is empty and yields nothing.
+                return
         else:
             initial_value = initializer
 
-        # Perform the reduction
+        # Perform the reduction on the rest of the iterator.
         result = functools.reduce(func, iterator, initial_value)
         yield result
 

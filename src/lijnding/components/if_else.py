@@ -1,3 +1,7 @@
+"""
+This module provides the `if_else` component, which allows for conditional
+routing of items to one of two different sub-pipelines.
+"""
 from __future__ import annotations
 
 from typing import Any, Callable, Union, Iterable, AsyncIterator
@@ -33,6 +37,7 @@ def if_else(
     if not isinstance(if_true_pipeline, Pipeline) or not isinstance(if_false_pipeline, Pipeline):
         raise TypeError("if_true and if_false must be Stage or Pipeline instances.")
 
+    # If either of the branches is async, the entire component must be async.
     is_async = (
         "async" in if_true_pipeline._get_required_backend_names() or
         "async" in if_false_pipeline._get_required_backend_names()
@@ -41,11 +46,13 @@ def if_else(
     if is_async:
         @stage(name="IfElse", stage_type="itemwise", backend="async")
         async def _if_else_func_async(context: Context, item: Any) -> AsyncIterator[Any]:
+            # Route the item to the appropriate pipeline based on the condition.
             if condition(item):
                 stream, _ = await if_true_pipeline.run_async(data=[item])
             else:
                 stream, _ = await if_false_pipeline.run_async(data=[item])
 
+            # Yield the results from the chosen pipeline.
             async for res in stream:
                 yield res
 
@@ -53,11 +60,13 @@ def if_else(
     else:
         @stage(name="IfElse", stage_type="itemwise")
         def _if_else_func_sync(context: Context, item: Any) -> Iterable[Any]:
+            # Route the item to the appropriate pipeline based on the condition.
             if condition(item):
                 stream, _ = if_true_pipeline.run(data=[item])
             else:
                 stream, _ = if_false_pipeline.run(data=[item])
 
+            # Yield the results from the chosen pipeline.
             yield from stream
 
         return _if_else_func_sync

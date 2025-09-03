@@ -1,3 +1,7 @@
+"""
+This module provides the `split` component, which is used to transform a
+single item into a stream of multiple items.
+"""
 from __future__ import annotations
 
 from typing import Any, Callable, Iterable, Optional
@@ -24,15 +28,17 @@ def split(func: Optional[Callable[[Any], Iterable[Any]]] = None) -> Stage:
 
     @stage(name="split", stage_type="itemwise")
     def _split_func(item: Any) -> Iterable[Any]:
-        """The underlying function for the split stage."""
         if func:
-            # If a function is provided, use it to generate the iterable
+            # If a function is provided, call it and yield from the resulting iterable.
             yield from func(item)
         elif hasattr(item, "__iter__") and not isinstance(item, (str, bytes, dict)):
-            # If no function, assume the item itself is the iterable
+            # If no function is given, check if the item is a common iterable type
+            # (but not a string, bytes, or dict, which are technically iterable
+            # but usually treated as single items).
             yield from item
         else:
-            # Otherwise, just yield the item itself
+            # If the item is not a standard iterable or a function was not provided,
+            # yield the item itself as a single-element stream.
             yield item
 
     return _split_func

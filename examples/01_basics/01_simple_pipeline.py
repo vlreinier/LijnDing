@@ -4,7 +4,14 @@ This example shows the most direct way to compose a pipeline.
 """
 from lijnding.core import stage, Pipeline # Pipeline is only needed for type hinting here
 
-# 1. Define pipeline stages using the @stage decorator
+# 1. Define the data to be processed.
+data = [
+    "This is the first sentence. This is the second.",
+    "Here is another block of text. It has two more sentences.",
+]
+
+# 2. Define the pipeline stages using the @stage decorator.
+# Each stage is a simple Python function.
 @stage
 def split_sentences(text: str):
     """Takes a block of text and yields individual sentences."""
@@ -21,26 +28,21 @@ def count_words(sentence: str):
 
 @stage
 def to_dict(data: tuple):
-    """Takes a tuple and converts it to a dictionary."""
+    """Takes a tuple and converts it to a dictionary for readability."""
     return {"word_count": data[0], "sentence": data[1]}
 
-# 3. Construct the pipeline by chaining stages together directly.
-#    You don't need to create an empty Pipeline() first.
+# 3. Construct the pipeline by chaining the stages together using the `|` operator.
+#    This creates a new Pipeline object.
 pipeline: Pipeline = split_sentences | count_words | to_dict
 
 
 def main():
-    """Builds and runs the pipeline."""
-    # 2. Define the input data
-    data = [
-        "This is the first sentence. This is the second.",
-        "Here is another block of text. It has two more sentences.",
-    ]
-
-    # 4. Run the pipeline and collect the results
+    """Runs the pipeline and prints the results."""
+    # 4. Execute the pipeline by calling its `collect()` method.
+    # `collect()` runs the pipeline and gathers all results into a list.
     results, context = pipeline.collect(data)
 
-    # 5. Print the results
+    # 5. Print the results and the final context.
     print("--- Pipeline Results ---")
     for res in results:
         print(res)

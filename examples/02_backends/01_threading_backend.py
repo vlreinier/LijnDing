@@ -30,8 +30,8 @@ def main():
     """Builds and runs the concurrent pipeline."""
     print("--- Starting pipeline with 'thread' backend ---")
 
-    # Construct the pipeline
-    pipeline = Pipeline() | download_url
+    # Construct the pipeline. A single stage is a valid pipeline.
+    pipeline = download_url
 
     # Run the pipeline and time it
     start_time = time.perf_counter()

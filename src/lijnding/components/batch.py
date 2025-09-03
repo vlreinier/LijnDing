@@ -23,7 +23,6 @@ def batch(size: int = 10) -> Stage:
 
     @aggregator_stage(name=f"batch(size={size})")
     def _batch_func(iterable: Iterable[Any]) -> Iterable[List[Any]]:
-        """The underlying function for the batch stage."""
         batch: List[Any] = []
         for item in iterable:
             batch.append(item)

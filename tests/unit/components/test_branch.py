@@ -32,10 +32,14 @@ def test_branch_with_uneven_outputs():
         yield x
         yield x
 
+    # The 'zip' strategy stops when the shortest branch is exhausted.
+    # `exclaim` yields 1 item, `multi_yield` yields 2. The pipeline stops after 1.
     pipeline_zip = stage(lambda x: x) | branch(multi_yield, exclaim, merge="zip")
     results_zip, _ = pipeline_zip.collect(["a", "b"])
     assert results_zip == [("a", "a!"), ("b", "b!")]
 
+    # The 'zip_longest' strategy continues until the longest branch is exhausted.
+    # The second result from `multi_yield` is paired with the `fillvalue` (None).
     pipeline_zip_longest = stage(lambda x: x) | branch(multi_yield, exclaim, merge="zip_longest")
     results_zip_longest, _ = pipeline_zip_longest.collect(["a"])
     assert results_zip_longest == [("a", "a!"), ("a", None)]
@@ -66,12 +70,14 @@ async def test_branch_with_uneven_outputs_async():
         yield x
         yield x
 
-    # Test with one sync and one async stage
+    # Test with one sync and one async stage. The 'zip' strategy stops when
+    # the shortest branch (`exclaim`, which yields 1 item) is exhausted.
     pipeline_zip = stage(lambda x: x) | branch(multi_yield_async, exclaim, merge="zip")
     stream_zip, _ = await pipeline_zip.run_async(["a", "b"])
     results_zip = [item async for item in stream_zip]
     assert results_zip == [("a", "a!"), ("b", "b!")]
 
+    # The 'zip_longest' strategy continues until the longest branch is exhausted.
     pipeline_zip_longest = stage(lambda x: x) | branch(multi_yield_async, exclaim, merge="zip_longest")
     stream_zip_longest, _ = await pipeline_zip_longest.run_async(["a"])
     results_zip_longest = [item async for item in stream_zip_longest]

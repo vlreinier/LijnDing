@@ -1,3 +1,7 @@
+"""
+This module provides the `for_each` component, which is used to apply a
+sub-pipeline to each element of a nested iterable within an item.
+"""
 from __future__ import annotations
 
 from typing import Any, Callable, Union, Iterable, AsyncIterator, List, Mapping
@@ -18,16 +22,17 @@ def for_each(
     `selector` function, and then runs a sub-pipeline for each element
     in that iterable.
 
-    The results from the sub-pipeline runs are collected and yielded as a
-    single list.
+    The results from all runs of the sub-pipeline are collected into a single
+    list, which is then yielded as the output of the stage.
 
     Args:
         pipeline: The Stage or Pipeline to execute for each element.
         selector: A function that takes the input item and returns an
-                  iterable.
+                  iterable of elements to be processed.
 
     Returns:
-        A Stage that encapsulates the for-each logic.
+        A Stage that, for each input item, yields a single list containing
+        all the results from the sub-pipeline runs.
     """
     sub_pipeline = Pipeline([pipeline]) if isinstance(pipeline, Stage) else pipeline
 
@@ -39,23 +44,29 @@ def for_each(
     if is_async:
         @stage(name="ForEach", stage_type="itemwise", backend="async")
         async def _for_each_func_async(context: Context, item: Any) -> AsyncIterator[Any]:
+            # Use the selector to extract the iterable of elements from the input item.
             elements = selector(item)
             all_results = []
+            # For each element, run the sub-pipeline and collect the results.
             for element in elements:
                 stream, _ = await sub_pipeline.run_async(data=[element])
                 results: List[Any] = [res async for res in stream]
                 all_results.extend(results)
+            # Yield a single list containing all the results.
             yield all_results
 
         return _for_each_func_async
     else:
         @stage(name="ForEach", stage_type="itemwise")
         def _for_each_func_sync(context: Context, item: Any) -> Iterable[Any]:
+            # Use the selector to extract the iterable of elements from the input item.
             elements = selector(item)
             all_results = []
+            # For each element, run the sub-pipeline and collect the results.
             for element in elements:
                 results, _ = sub_pipeline.collect(data=[element])
                 all_results.extend(results)
+            # Yield a single list containing all the results.
             yield all_results
 
         return _for_each_func_sync

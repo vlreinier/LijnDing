@@ -1,3 +1,7 @@
+"""
+This module provides the `retry` component, which wraps a sub-pipeline
+and retries its execution on failure.
+"""
 from __future__ import annotations
 import time
 import asyncio
@@ -37,13 +41,14 @@ def retry(
         @stage(name=f"Retry(retries={retries})", stage_type="itemwise", backend="async")
         async def _retry_func_async(context: Context, item: Any) -> AsyncIterator[Any]:
             last_exception = None
+            # The loop runs `retries + 1` times (e.g., 1 initial attempt + 3 retries).
             for attempt in range(retries + 1):
                 try:
                     stream, _ = await sub_pipeline.run_async(data=[item])
                     results: List[Any] = [res async for res in stream]
                     for res in results:
                         yield res
-                    return  # Success
+                    return  # On success, exit the function.
                 except Exception as e:
                     last_exception = e
                     if attempt < retries:
@@ -52,7 +57,7 @@ def retry(
                             exc_info=e
                         )
                         await asyncio.sleep(backoff)
-
+            # If all attempts fail, raise the last recorded exception.
             context.logger.error(f"All {retries + 1} attempts failed.")
             raise last_exception
 
@@ -61,11 +66,12 @@ def retry(
         @stage(name=f"Retry(retries={retries})", stage_type="itemwise")
         def _retry_func_sync(context: Context, item: Any) -> Iterable[Any]:
             last_exception = None
+            # The loop runs `retries + 1` times (e.g., 1 initial attempt + 3 retries).
             for attempt in range(retries + 1):
                 try:
                     results, _ = sub_pipeline.collect(data=[item])
                     yield from results
-                    return  # Success
+                    return  # On success, exit the function.
                 except Exception as e:
                     last_exception = e
                     if attempt < retries:
@@ -74,7 +80,7 @@ def retry(
                             exc_info=e
                         )
                         time.sleep(backoff)
-
+            # If all attempts fail, raise the last recorded exception.
             context.logger.error(f"All {retries + 1} attempts failed.")
             raise last_exception
 

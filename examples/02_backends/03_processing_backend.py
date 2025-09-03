@@ -20,7 +20,7 @@ def main():
     """Builds and runs the concurrent pipeline."""
     print("--- Starting pipeline with 'process' backend ---")
 
-    pipeline = Pipeline([cpu_intensive_task])
+    pipeline = cpu_intensive_task
 
     data = [8, 9, 7, 10]
 

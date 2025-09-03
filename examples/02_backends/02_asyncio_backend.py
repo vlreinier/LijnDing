@@ -32,8 +32,8 @@ async def main():
     # Construct the pipeline
     pipeline = download_url_async
 
-    # To run an async pipeline, you must use the `run_async` method
-    # and `await` it.
+    # To run an async pipeline, you must use the `run_async` method.
+    # It returns an async iterator which you can then iterate over.
     stream, _ = await pipeline.run_async(URLS)
 
     # You can then iterate over the results using `async for`.

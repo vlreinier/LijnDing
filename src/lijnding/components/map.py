@@ -1,3 +1,7 @@
+"""
+This module provides the `map_values` component, which is a fundamental
+building block for applying a 1-to-1 transformation to each item in a stream.
+"""
 from __future__ import annotations
 
 from typing import Any, Callable
@@ -25,8 +29,6 @@ def map_values(func: Callable[[Any], Any]) -> Stage:
 
     @stage(name=name, stage_type="itemwise")
     def _map_func(item: Any) -> Any:
-        """The underlying function for the map stage."""
         return func(item)
 
-    # We need to return the created Stage instance directly
     return _map_func
