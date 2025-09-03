@@ -64,14 +64,39 @@ class ThreadingRunner(BaseRunner):
                     item_start_time = time.perf_counter()
                     try:
                         stage.metrics["items_in"] += 1
-                        results = stage._invoke(worker_context, item)
-                        output_stream = ensure_iterable(results)
 
-                        count_out = 0
-                        for res in output_stream:
-                            stage.metrics["items_out"] += 1
-                            count_out += 1
-                            q_out.put(res)
+                        if stage.is_async:
+                            import asyncio
+
+                            async def run_async_stage():
+                                # We are in a thread, so we can't use the main event loop.
+                                # We need to create a new one.
+                                results = stage._invoke(worker_context, item)
+                                output_stream = ensure_iterable(results)
+
+                                count_out = 0
+                                async for res in output_stream:
+                                    stage.metrics["items_out"] += 1
+                                    count_out += 1
+                                    q_out.put(res)
+                                return count_out
+
+                            # Create and run a new event loop in this thread
+                            loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(loop)
+                            try:
+                                count_out = loop.run_until_complete(run_async_stage())
+                            finally:
+                                loop.close()
+                        else:
+                            results = stage._invoke(worker_context, item)
+                            output_stream = ensure_iterable(results)
+
+                            count_out = 0
+                            for res in output_stream:
+                                stage.metrics["items_out"] += 1
+                                count_out += 1
+                                q_out.put(res)
 
                         item_elapsed = time.perf_counter() - item_start_time
                         logger.debug("item_processed", items_out=count_out, duration=round(item_elapsed, 4))

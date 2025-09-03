@@ -119,3 +119,34 @@ async def test_mixed_async_thread_serial_pipeline():
     # After slow_io_stage: [6, 12, 18, 24]
     # After fast_cpu_stage: [7, 13, 19, 25]
     assert sorted(results) == [7, 13, 19, 25]
+
+
+async def test_mixed_process_async_pipeline():
+    """
+    Tests a pipeline with a mix of processing and asyncio stages.
+    """
+    pipeline = cpu_bound_stage | async_io_stage
+
+    data = [1, 2, 3, 4]
+    results, _ = await run_pipeline(pipeline, data)
+
+    expected_cpu_out = [cpu_bound_stage.func(i) for i in data]
+    expected_final_out = []
+    for i in expected_cpu_out:
+        expected_final_out.append(await async_io_stage.func(i))
+    assert sorted(results) == sorted(expected_final_out)
+
+
+def test_mixed_thread_process_thread_pipeline():
+    """
+    Tests a pipeline that switches from thread to process and back to thread.
+    """
+    pipeline = slow_io_stage | cpu_bound_stage | slow_io_stage
+
+    data = [1, 2, 3, 4]
+    results, _ = pipeline.collect(data)
+
+    expected_io1_out = [slow_io_stage.func(i) for i in data]
+    expected_cpu_out = [cpu_bound_stage.func(i) for i in expected_io1_out]
+    expected_final_out = [slow_io_stage.func(i) for i in expected_cpu_out]
+    assert sorted(results) == sorted(expected_final_out)

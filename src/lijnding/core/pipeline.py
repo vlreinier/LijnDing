@@ -101,7 +101,21 @@ class Pipeline:
                 stream = runner.run(stage, context, stream)
 
             if collect:
-                return list(stream), context
+                # If the stream is an async generator, we need to run it in an event loop
+                # to collect the results.
+                if hasattr(stream, "__aiter__"):
+                    async def _collect_async(async_stream):
+                        return [item async for item in async_stream]
+
+                    try:
+                        loop = asyncio.get_running_loop()
+                    except RuntimeError:
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+
+                    return loop.run_until_complete(_collect_async(stream)), context
+                else:
+                    return list(stream), context
             return stream, context
         finally:
             end_time = time.time()
