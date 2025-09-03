@@ -42,6 +42,15 @@ class BaseRunner(ABC):
         """
         raise NotImplementedError
 
+    def should_run_in_own_loop(self) -> bool:
+        """
+        Determines if a runner, when used as a sync bridge in an async pipeline,
+        should be run in a new event loop on a separate thread instead of the
+        main thread's executor. This is for runners that might spawn their
+        own event loops, which would conflict with the main one.
+        """
+        return False
+
     def _run_aggregator(self, stage: "Stage", context: "Context", iterable: Iterable[Any]) -> Iterator[Any]:
         """
         Processes an entire iterable at once with structured logging.

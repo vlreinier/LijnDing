@@ -2,6 +2,7 @@ import asyncio
 import time
 import pytest
 from lijnding.core import Pipeline, stage
+from ..helpers.test_runner import run_pipeline
 
 
 @stage(backend="thread", workers=2)
@@ -58,8 +59,7 @@ def test_mixed_backend_pipeline():
     assert sorted(results) == [3, 5, 7, 9]
 
 
-@pytest.mark.skip(reason="This test triggers a deadlock in the original ThreadingRunner.")
-def test_mixed_async_thread_pipeline():
+async def test_mixed_async_thread_pipeline():
     """
     Tests a pipeline with a mix of asyncio and threaded stages.
     """
@@ -67,7 +67,7 @@ def test_mixed_async_thread_pipeline():
 
     data = [1, 2, 3, 4]
     start_time = time.perf_counter()
-    results, _ = pipeline.collect(data)
+    results, _ = await run_pipeline(pipeline, data)
     end_time = time.perf_counter()
 
     # With 2 workers for each stage and 4 items, and each stage taking 0.1s,
@@ -100,8 +100,7 @@ def test_mixed_process_thread_pipeline():
     assert sorted(results) == sorted(expected_final_out)
 
 
-@pytest.mark.skip(reason="This test triggers a deadlock in the original ThreadingRunner.")
-def test_mixed_async_thread_serial_pipeline():
+async def test_mixed_async_thread_serial_pipeline():
     """
     Tests a more complex pipeline with asyncio, thread, and serial stages.
     """
@@ -109,7 +108,7 @@ def test_mixed_async_thread_serial_pipeline():
 
     data = [1, 2, 3, 4]
     start_time = time.perf_counter()
-    results, _ = pipeline.collect(data)
+    results, _ = await run_pipeline(pipeline, data)
     end_time = time.perf_counter()
 
     # Similar to the async/thread test, we expect concurrency to provide a speedup.

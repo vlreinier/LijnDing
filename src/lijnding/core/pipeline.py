@@ -147,13 +147,26 @@ class Pipeline:
                     stream = runner.run_async(stage, context, stream)
                 else:
                     # This is a synchronous bridge for running a sync stage in an async pipeline.
-                    # We run the synchronous stage in a thread pool to avoid blocking the event loop.
                     items = [item async for item in stream]
                     loop = asyncio.get_running_loop()
 
                     def run_sync_stage_in_thread():
-                        return list(runner.run(stage, context, items))
+                        # This function will run in a separate thread.
+                        # If the runner needs its own event loop, we create one here.
+                        if runner.should_run_in_own_loop():
+                            new_loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(new_loop)
+                            try:
+                                # We can now safely run async code if the runner needs it,
+                                # though for a sync runner, it just runs its course.
+                                return list(runner.run(stage, context, items))
+                            finally:
+                                new_loop.close()
+                        else:
+                            # Otherwise, just run it directly.
+                            return list(runner.run(stage, context, items))
 
+                    # We run the synchronous stage in a thread pool to avoid blocking the main event loop.
                     sync_results = await loop.run_in_executor(None, run_sync_stage_in_thread)
                     stream = _to_async(sync_results)
             return stream, context

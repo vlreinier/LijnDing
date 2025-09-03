@@ -20,6 +20,8 @@ class ThreadingRunner(BaseRunner):
     A runner that executes itemwise stages in a pool of threads.
     Aggregator stages are run serially.
     """
+    def should_run_in_own_loop(self) -> bool:
+        return True
 
     def _run_itemwise(self, stage: "Stage", context: "Context", iterable: Iterable[Any]) -> Iterator[Any]:
         import time
