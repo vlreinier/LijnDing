@@ -1,5 +1,5 @@
 import pytest
-from lijnding.core import Pipeline
+from lijnding.core.pipeline import Pipeline
 from lijnding.components.filter import filter_
 from tests.helpers.test_runner import run_pipeline, BACKENDS
 

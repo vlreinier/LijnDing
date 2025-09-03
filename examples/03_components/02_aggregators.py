@@ -3,7 +3,7 @@ An example demonstrating the use of aggregator components like `batch` and `redu
 """
 from lijnding.core import stage, aggregator_stage
 from lijnding.components.batch import batch
-from lijnding.components.reduce import reduce
+from lijnding.components.reduce import reduce_
 
 # --- A simple pipeline demonstrating batching and reducing ---
 
@@ -38,10 +38,10 @@ def process_batches(batches):
         print(f"Processing batch: {batch_list} -> Sum: {batch_sum}")
         yield batch_sum
 
-# The `reduce` component is another example of a built-in aggregator.
+# The `reduce_` component is another example of a built-in aggregator.
 # It will take the stream of sums from the previous stage and add them
 # all together to produce a single final result.
-reduce_stage = reduce(lambda a, b: a + b, initializer=0)
+reduce_stage = reduce_(lambda a, b: a + b, initializer=0)
 
 
 def main():

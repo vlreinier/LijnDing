@@ -1,6 +1,7 @@
 import pytest
 
-from lijnding import Pipeline, stage
+from lijnding.core.pipeline import Pipeline
+from lijnding.core.stage import stage
 from lijnding.components.while_loop import while_loop
 
 
