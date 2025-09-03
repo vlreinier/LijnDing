@@ -206,18 +206,145 @@ class Pipeline:
         is_async_pipeline = "async" in self._get_required_backend_names()
 
         if is_async_pipeline:
-            @stage(name=pipeline_name, stage_type="itemwise", backend="async")
+            @stage(
+                name=pipeline_name,
+                stage_type="itemwise",
+                backend="async",
+                wrapped_pipeline=self,
+            )
             async def _pipeline_as_stage_func_async(context: Context, item: Any) -> AsyncIterator[Any]:
                 stream, _ = await self.run_async(data=[item])
                 async for inner_item in stream:
                     yield inner_item
             return _pipeline_as_stage_func_async
         else:
-            @stage(name=pipeline_name, stage_type="itemwise")
+            @stage(
+                name=pipeline_name,
+                stage_type="itemwise",
+                wrapped_pipeline=self,
+            )
             def _pipeline_as_stage_func_sync(context: Context, item: Any) -> Iterable[Any]:
                 inner_results, _ = self.run(data=[item], collect=True)
                 yield from inner_results
             return _pipeline_as_stage_func_sync
+
+    def visualize(self) -> str:
+        """
+        Generates a DOT graph representation of the pipeline.
+
+        The output can be rendered using Graphviz.
+        Example: `dot -Tpng -o pipeline.png pipeline.dot`
+        """
+        import re
+        import textwrap
+
+        def get_node_id(obj: Any) -> str:
+            """Creates a unique and DOT-compatible ID for an object."""
+            return f'"{id(obj)}"'
+
+        def escape_label(label: str) -> str:
+            """Escapes a string for use as a DOT label."""
+            return label.replace('"', '\\"').replace("{", "\\{").replace("}", "\\}")
+
+        def format_label(name: str, stage: Optional[Stage] = None) -> str:
+            """Creates a formatted label for a node."""
+            name = escape_label(name)
+            if not stage:
+                return f'"{name}"'
+
+            label_parts = [name]
+            if stage.backend != "serial":
+                label_parts.append(f"backend: {stage.backend}")
+            if stage.workers > 1:
+                label_parts.append(f"workers: {stage.workers}")
+
+            return f'"{"\\n".join(label_parts)}"'
+
+
+        def _traverse(pipeline: "Pipeline", graph_name: str, parent_node: Optional[str] = None) -> Tuple[List[str], Optional[str], Optional[str]]:
+            """
+            Recursively traverses the pipeline and generates DOT graph statements.
+            Returns a tuple of (dot_statements, first_node_id, last_node_id).
+            """
+            dot: List[str] = []
+            prefix = "  " * (graph_name.count("cluster") + 1)
+            first_node = None
+            last_node = parent_node
+
+            if not pipeline.stages:
+                return [], None, None
+
+            # Create a subgraph for the current pipeline
+            dot.append(f'{prefix}subgraph "{graph_name}" {{')
+            dot.append(f'{prefix}  label = "{escape_label(pipeline.name)}";')
+            dot.append(f'{prefix}  style = "rounded";')
+
+
+            for i, stage in enumerate(pipeline.stages):
+                node_id = get_node_id(stage)
+                if not first_node:
+                    first_node = node_id
+
+                # Handling for branch stages
+                if stage.branch_pipelines:
+                    branch_cluster_name = f"cluster_branch_{id(stage)}"
+                    dot.append(f'{prefix}  subgraph "{branch_cluster_name}" {{')
+                    dot.append(f'{prefix}    label = "{escape_label(stage.name)}";')
+                    dot.append(f'{prefix}    style = "dashed";')
+
+                    branch_entry_id = f'"branch_entry_{id(stage)}"'
+                    branch_exit_id = f'"branch_exit_{id(stage)}"'
+                    dot.append(f'{prefix}    {branch_entry_id} [label="start", shape=circle, style=filled, fillcolor=grey];')
+                    dot.append(f'{prefix}    {branch_exit_id} [label="end", shape=circle, style=filled, fillcolor=grey];')
+
+
+                    for j, branch_pipeline in enumerate(stage.branch_pipelines):
+                        branch_graph_name = f"cluster_branch_{id(stage)}_sub_{j}"
+                        branch_dot, branch_first, branch_last = _traverse(branch_pipeline, branch_graph_name)
+                        dot.extend(branch_dot)
+                        if branch_first:
+                            dot.append(f"{prefix}    {branch_entry_id} -> {branch_first};")
+                        if branch_last:
+                            dot.append(f"{prefix}    {branch_last} -> {branch_exit_id};")
+
+                    dot.append(f'{prefix}  }}')
+
+                    if last_node:
+                        dot.append(f"{prefix}  {last_node} -> {branch_entry_id};")
+                    last_node = branch_exit_id
+
+                # Handling for nested pipelines
+                elif stage.wrapped_pipeline:
+                    nested_pipeline = stage.wrapped_pipeline
+                    nested_cluster_name = f"cluster_nested_{id(stage)}"
+                    nested_dot, nested_first, nested_last = _traverse(nested_pipeline, nested_cluster_name)
+                    dot.extend(nested_dot)
+                    if last_node and nested_first:
+                        dot.append(f"{prefix}  {last_node} -> {nested_first};")
+                    if nested_last:
+                        last_node = nested_last
+
+                # Handling for regular stages
+                else:
+                    label = format_label(stage.name, stage)
+                    dot.append(f"{prefix}  {node_id} [label={label}, shape=box];")
+                    if last_node:
+                        dot.append(f"{prefix}  {last_node} -> {node_id};")
+                    last_node = node_id
+
+
+            dot.append(f"{prefix}}}")
+            return dot, first_node, last_node
+
+
+        # Main part of visualize()
+        dot_lines = ["digraph G {", "  rankdir=TB;"]
+        traversed_statements, _, _ = _traverse(self, "cluster_main", None)
+        dot_lines.extend(traversed_statements)
+        dot_lines.append("}")
+
+        return "\n".join(dot_lines)
+
 
     def __repr__(self) -> str:
         stage_names = " | ".join(s.name for s in self.stages)

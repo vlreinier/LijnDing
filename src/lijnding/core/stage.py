@@ -37,7 +37,11 @@ class Stage:
         output_type: Optional[Type[Any]] = None,
         error_policy: Optional[ErrorPolicy] = None,
         hooks: Optional[Hooks] = None,
+        branch_pipelines: Optional[List["Pipeline"]] = None,
+        wrapped_pipeline: Optional["Pipeline"] = None,
     ):
+        from .pipeline import Pipeline
+
         self.func = func
         self.name = name or getattr(func, "__name__", "Stage")
         self.logger = get_logger(f"lijnding.stage.{self.name}")
@@ -48,6 +52,8 @@ class Stage:
         self.error_policy = error_policy or ErrorPolicy()
         self.hooks = hooks or Hooks()
         self.is_async = inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func)
+        self.branch_pipelines = branch_pipelines
+        self.wrapped_pipeline = wrapped_pipeline
 
         inferred_in, inferred_out, num_args = infer_types(func)
         self.input_type = input_type or inferred_in
@@ -71,6 +77,14 @@ class Stage:
     def __rshift__(self, other: Union["Stage", "Pipeline"]) -> "Pipeline":
         from .pipeline import Pipeline
         return Pipeline([self]) | other
+
+    def visualize(self) -> str:
+        """
+        Generates a DOT graph representation of the stage as a single-stage pipeline.
+        """
+        from .pipeline import Pipeline
+        pipeline = Pipeline([self], name=self.name)
+        return pipeline.visualize()
 
     def run(
         self, data: Optional[Iterable[Any]] = None, *, collect: bool = False, config_path: Optional[str] = None
@@ -172,6 +186,8 @@ def stage(
     output_type: Optional[Type[Any]] = None,
     error_policy: Optional[ErrorPolicy] = None,
     hooks: Optional[Hooks] = None,
+    branch_pipelines: Optional[List["Pipeline"]] = None,
+    wrapped_pipeline: Optional["Pipeline"] = None,
 ) -> Union[Stage, Callable[[Callable[..., Any]], Stage]]:
     """
     A decorator to create a pipeline Stage from a function.
@@ -198,6 +214,10 @@ def stage(
             this stage.
         hooks (Optional[Hooks]): A collection of hooks for monitoring and
             tracing.
+        branch_pipelines (Optional[List["Pipeline"]]): For internal use by the
+            `branch` component.
+        wrapped_pipeline (Optional["Pipeline"]): For internal use by
+            `Pipeline.to_stage`.
 
     Returns:
         A Stage object or a decorator that returns a Stage object.
@@ -214,6 +234,8 @@ def stage(
             output_type=output_type,
             error_policy=error_policy,
             hooks=hooks,
+            branch_pipelines=branch_pipelines,
+            wrapped_pipeline=wrapped_pipeline,
         )
 
     if _func is not None:
@@ -232,6 +254,8 @@ def aggregator_stage(
     output_type: Optional[Type[Any]] = None,
     error_policy: Optional[ErrorPolicy] = None,
     hooks: Optional[Hooks] = None,
+    branch_pipelines: Optional[List["Pipeline"]] = None,
+    wrapped_pipeline: Optional["Pipeline"] = None,
 ) -> Union[Stage, Callable[[Callable[..., Any]], Stage]]:
     """
     A decorator to create an aggregator stage.
@@ -256,4 +280,6 @@ def aggregator_stage(
         output_type=output_type,
         error_policy=error_policy,
         hooks=hooks,
+        branch_pipelines=branch_pipelines,
+        wrapped_pipeline=wrapped_pipeline,
     )

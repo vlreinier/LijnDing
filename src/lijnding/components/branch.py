@@ -87,7 +87,12 @@ def branch(*branches: Union[Stage, "Pipeline"], merge: str = "concat") -> Stage:
     is_async_branch = any("async" in p._get_required_backend_names() for p in branch_pipelines)
 
     if is_async_branch:
-        @stage(name=f"Branch(merge='{merge}')", stage_type="itemwise", backend="async")
+        @stage(
+            name=f"Branch(merge='{merge}')",
+            stage_type="itemwise",
+            backend="async",
+            branch_pipelines=branch_pipelines,
+        )
         async def _branch_func_async(context: "Context", item: Any) -> AsyncIterator[Any]:
             branch_iterators = [
                 (await p.run_async([item]))[0] for p in branch_pipelines
@@ -106,7 +111,11 @@ def branch(*branches: Union[Stage, "Pipeline"], merge: str = "concat") -> Stage:
 
         return _branch_func_async
     else:
-        @stage(name=f"Branch(merge='{merge}')", stage_type="itemwise")
+        @stage(
+            name=f"Branch(merge='{merge}')",
+            stage_type="itemwise",
+            branch_pipelines=branch_pipelines,
+        )
         def _branch_func_sync(context: "Context", item: Any) -> Iterable[Any]:
             branch_iterators = [
                 p.run([item], collect=False)[0] for p in branch_pipelines
