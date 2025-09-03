@@ -159,7 +159,14 @@ class AsyncioRunner(BaseRunner):
 
         # This is a bridge from the async world to the sync world.
         # It collects all results and then returns them.
-        loop = asyncio.get_event_loop()
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:  # pragma: no cover
+            # This occurs if we're in a thread that's not the main thread
+            # and no event loop has been set.
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
         if loop.is_running():
             # If there's already a loop, we can't just call asyncio.run().
             # This is a complex problem. For now, we'll raise an error.
