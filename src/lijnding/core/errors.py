@@ -24,14 +24,16 @@ class ErrorPolicy:
 
     Attributes:
         mode (str): The strategy to use when an error occurs.
-            - 'fail': (Default) Stop execution and raise the exception.
-            - 'skip': Ignore the item that caused the error and continue.
-            - 'retry': Attempt to re-run the stage on the failing item.
-            - 'route_to_pipeline': Send the failing item to a separate pipeline
-              and pass on the transformed result.
-            - 'route_to_pipeline_and_retry': Send the failing item to a
+
+            - **fail**: (Default) Stop execution and raise the exception.
+            - **skip**: Ignore the item that caused the error and continue.
+            - **retry**: Attempt to re-run the stage on the failing item.
+            - **route_to_pipeline**: Send the failing item to a separate
+              pipeline and pass on the transformed result.
+            - **route_to_pipeline_and_retry**: Send the failing item to a
               separate pipeline and retry the original stage with the
               transformed result.
+
         retries (int): The number of times to retry if mode is 'retry' or
             'route_to_pipeline_and_retry'.
         backoff (float): The number of seconds to wait between retries.

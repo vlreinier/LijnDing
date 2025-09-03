@@ -1,3 +1,11 @@
+"""
+This module defines the core Pipeline class, which is the primary entry point for
+building and executing data processing workflows.
+
+A Pipeline is a sequence of Stages that are composed together. Data flows
+through the pipeline, being processed by each stage in turn. Pipelines can be
+run synchronously or asynchronously, and can be nested within other pipelines.
+"""
 from __future__ import annotations
 from typing import Any, Iterable, List, Optional, Tuple, Union, AsyncIterator, AsyncIterable
 import time
@@ -14,19 +22,43 @@ from typing import Iterable
 
 
 class Pipeline:
-    """
-    A sequence of stages that process data.
+    """A sequence of stages that process data.
+
+    The Pipeline class is the main orchestrator for running a series of stages.
+    It manages the flow of data, context, and execution backends.
+
+    Attributes:
+        stages: A list of Stage objects that make up the pipeline.
+        name: The name of the pipeline, used for logging.
+        logger: A logger instance for the pipeline.
     """
 
     def __init__(self, stages: Optional[List[Stage]] = None, *, name: Optional[str] = None):
+        """Initializes a new Pipeline.
+
+        Args:
+            stages: A list of initial stages for the pipeline.
+            name: An optional name for the pipeline. If not provided, a default
+                name will be used.
+        """
         self.stages: List[Stage] = stages or []
         self.name = name or "Pipeline"
         self.logger = get_logger(f"lijnding.pipeline.{self.name}")
 
     def add(self, other: Any) -> "Pipeline":
-        """
-        Adds a component (Stage or Pipeline) to this pipeline.
-        This enables a fluent, chainable interface for building pipelines.
+        """Adds a component (Stage or Pipeline) to this pipeline.
+
+        This method allows for a fluent, chainable interface for building pipelines.
+
+        Args:
+            other: The component to add. Can be a `Stage` or another `Pipeline`.
+
+        Returns:
+            The pipeline instance, allowing for method chaining.
+
+        Raises:
+            TypeError: If the object being added is not a `Stage` or `Pipeline`,
+                or if you try to connect two 'source' stages.
         """
         other_stage: Stage
         if isinstance(other, Stage):
@@ -45,8 +77,18 @@ class Pipeline:
         return self
 
     def __or__(self, other: Any) -> "Pipeline":
-        """
-        Composes this pipeline with another component (Stage or Pipeline).
+        """Composes this pipeline with another component using the `|` operator.
+
+        This is the primary way to build pipelines.
+
+        Args:
+            other: The component to add. Can be a `Stage` or another `Pipeline`.
+
+        Returns:
+            A new `Pipeline` instance representing the composition.
+
+        Raises:
+            TypeError: If the object being added is not a `Stage` or `Pipeline`.
         """
         other_stage: Stage
         if isinstance(other, Stage):
@@ -57,8 +99,6 @@ class Pipeline:
         else:
             raise TypeError(f"Unsupported type for pipeline composition: {type(other)}")
 
-        # If this pipeline is empty, create a new one starting with the new stage.
-        # Otherwise, add the new stage to the existing list.
         if self.stages:
             last_stage = self.stages[-1]
             if last_stage.stage_type == "source" and other_stage.stage_type == "source":
@@ -71,6 +111,7 @@ class Pipeline:
 
 
     def __rshift__(self, other: Union[Stage, "Pipeline"]) -> "Pipeline":
+        """Provides an alternative `>>` operator for pipeline composition."""
         return self.__or__(other)
 
     def _get_required_backend_names(self) -> set[str]:
@@ -83,6 +124,24 @@ class Pipeline:
     def run(
         self, data: Optional[Iterable[Any]] = None, *, collect: bool = False, config_path: Optional[str] = None
     ) -> Tuple[Union[List[Any], Iterable[Any]], Context]:
+        """Runs the pipeline synchronously.
+
+        This method executes the pipeline stages in order, passing the output of
+        one stage as the input to the next.
+
+        Args:
+            data: An iterable of input data to be fed into the pipeline. If the
+                first stage is a 'source' stage, this can be `None`.
+            collect: If `True`, the output of the pipeline will be collected into
+                a list and returned. If `False` (default), a generator will be
+                returned, allowing for streaming processing.
+            config_path: The path to a YAML configuration file to be loaded into
+                the pipeline's context.
+
+        Returns:
+            A tuple containing the pipeline's output (either a list or an
+            iterable) and the final `Context` object.
+        """
         self.logger.info("Pipeline run started.")
         start_time = time.time()
         config = load_config(config_path)
@@ -101,8 +160,6 @@ class Pipeline:
                 stream = runner.run(stage, context, stream)
 
             if collect:
-                # If the stream is an async generator, we need to run it in an event loop
-                # to collect the results.
                 if hasattr(stream, "__aiter__"):
                     async def _collect_async(async_stream):
                         return [item async for item in async_stream]
@@ -123,16 +180,34 @@ class Pipeline:
             self.logger.info(f"Pipeline run finished in {total_time:.4f} seconds.")
 
     def collect(self, data: Optional[Iterable[Any]] = None, config_path: Optional[str] = None) -> Tuple[List[Any], Context]:
+        """A convenience method that runs the pipeline and collects all results into a list.
+
+        Args:
+            data: An iterable of input data.
+            config_path: The path to a YAML configuration file.
+
+        Returns:
+            A tuple containing a list of the pipeline's output and the final
+            `Context` object.
+        """
         stream, context = self.run(data, collect=True, config_path=config_path)
-        # The type hint says stream can be an iterable, but collect=True ensures it's a list
         return stream, context # type: ignore
 
     async def run_async(
         self, data: Optional[Union[Iterable[Any], AsyncIterable[Any]]] = None, config_path: Optional[str] = None
     ) -> Tuple[AsyncIterator[Any], Context]:
-        """
-        Asynchronously executes the pipeline.
-        This method is required for pipelines that use the 'async' backend.
+        """Asynchronously executes the pipeline.
+
+        This method is required for pipelines that use the 'async' backend or
+        process `AsyncIterable` data.
+
+        Args:
+            data: An iterable or async iterable of input data.
+            config_path: The path to a YAML configuration file.
+
+        Returns:
+            A tuple containing an async iterator for the pipeline's output and
+            the final `Context` object.
         """
         self.logger.info("Async pipeline run started.")
         start_time = time.time()
@@ -144,7 +219,6 @@ class Pipeline:
                 raise TypeError("Pipeline.run_async() requires a data argument unless the first stage is a source stage.")
             data = []
 
-        # Ensure the input is an async iterable
         async def _to_async(it):
             for i in it:
                 yield i
@@ -161,17 +235,10 @@ class Pipeline:
                 if hasattr(runner, 'run_async'):
                     stream = runner.run_async(stage, context, stream)
                 else:
-                    # This is a synchronous bridge for running a sync stage in an async pipeline.
-                    # We use the AsyncToSyncIterator to bridge the async and sync worlds
-                    # in a streaming, memory-efficient way.
                     loop = asyncio.get_running_loop()
                     sync_iterable = AsyncToSyncIterator(stream, loop)
 
-                    # We still run the synchronous stage in a thread pool to avoid
-                    # blocking the event loop while it processes.
                     def run_sync_stage_in_thread():
-                        # This function will run in a separate thread.
-                        # If the runner needs its own event loop, we create one here.
                         if runner.should_run_in_own_loop():
                             new_loop = asyncio.new_event_loop()
                             asyncio.set_event_loop(new_loop)
@@ -180,7 +247,6 @@ class Pipeline:
                             finally:
                                 new_loop.close()
                         else:
-                            # Otherwise, just run it directly.
                             return list(runner.run(stage, context, sync_iterable))
 
                     sync_results = await loop.run_in_executor(None, run_sync_stage_in_thread)
@@ -193,16 +259,20 @@ class Pipeline:
 
     @property
     def metrics(self) -> dict[str, Any]:
+        """A dictionary containing metrics for each stage in the pipeline."""
         stage_metrics = {stage.name: stage.metrics for stage in self.stages}
         return {"stages": stage_metrics}
 
     def to_stage(self) -> Stage:
-        """
-        Converts the entire pipeline into a single, reusable Stage.
-        If the pipeline contains any async stages, this will produce an async Stage.
+        """Converts the entire pipeline into a single, reusable Stage.
+
+        This is useful for nesting pipelines within other pipelines. The resulting
+        stage will be async if any stage in the pipeline is async.
+
+        Returns:
+            A `Stage` object that encapsulates the entire pipeline's logic.
         """
         pipeline_name = self.name or "nested_pipeline"
-
         is_async_pipeline = "async" in self._get_required_backend_names()
 
         if is_async_pipeline:
@@ -229,25 +299,30 @@ class Pipeline:
             return _pipeline_as_stage_func_sync
 
     def visualize(self) -> str:
-        """
-        Generates a DOT graph representation of the pipeline.
+        """Generates a DOT graph representation of the pipeline.
 
         The output can be rendered using Graphviz.
-        Example: `dot -Tpng -o pipeline.png pipeline.dot`
+
+        Example:
+            ```bash
+            # Requires graphviz to be installed (e.g., `brew install graphviz`)
+            python my_pipeline_script.py > pipeline.dot
+            dot -Tpng -o pipeline.png pipeline.dot
+            ```
+
+        Returns:
+            A string containing the pipeline's structure in DOT format.
         """
         import re
         import textwrap
 
         def get_node_id(obj: Any) -> str:
-            """Creates a unique and DOT-compatible ID for an object."""
             return f'"{id(obj)}"'
 
         def escape_label(label: str) -> str:
-            """Escapes a string for use as a DOT label."""
             return label.replace('"', '\\"').replace("{", "\\{").replace("}", "\\}")
 
         def format_label(name: str, stage: Optional[Stage] = None) -> str:
-            """Creates a formatted label for a node."""
             name = escape_label(name)
             if not stage:
                 return f'"{name}"'
@@ -262,10 +337,6 @@ class Pipeline:
 
 
         def _traverse(pipeline: "Pipeline", graph_name: str, parent_node: Optional[str] = None) -> Tuple[List[str], Optional[str], Optional[str]]:
-            """
-            Recursively traverses the pipeline and generates DOT graph statements.
-            Returns a tuple of (dot_statements, first_node_id, last_node_id).
-            """
             dot: List[str] = []
             prefix = "  " * (graph_name.count("cluster") + 1)
             first_node = None
@@ -274,7 +345,6 @@ class Pipeline:
             if not pipeline.stages:
                 return [], None, None
 
-            # Create a subgraph for the current pipeline
             dot.append(f'{prefix}subgraph "{graph_name}" {{')
             dot.append(f'{prefix}  label = "{escape_label(pipeline.name)}";')
             dot.append(f'{prefix}  style = "rounded";')
@@ -285,7 +355,6 @@ class Pipeline:
                 if not first_node:
                     first_node = node_id
 
-                # Handling for branch stages
                 if stage.branch_pipelines:
                     branch_cluster_name = f"cluster_branch_{id(stage)}"
                     dot.append(f'{prefix}  subgraph "{branch_cluster_name}" {{')
@@ -313,7 +382,6 @@ class Pipeline:
                         dot.append(f"{prefix}  {last_node} -> {branch_entry_id};")
                     last_node = branch_exit_id
 
-                # Handling for nested pipelines
                 elif stage.wrapped_pipeline:
                     nested_pipeline = stage.wrapped_pipeline
                     nested_cluster_name = f"cluster_nested_{id(stage)}"
@@ -324,7 +392,6 @@ class Pipeline:
                     if nested_last:
                         last_node = nested_last
 
-                # Handling for regular stages
                 else:
                     label = format_label(stage.name, stage)
                     dot.append(f"{prefix}  {node_id} [label={label}, shape=box];")
@@ -336,8 +403,6 @@ class Pipeline:
             dot.append(f"{prefix}}}")
             return dot, first_node, last_node
 
-
-        # Main part of visualize()
         dot_lines = ["digraph G {", "  rankdir=TB;"]
         traversed_statements, _, _ = _traverse(self, "cluster_main", None)
         dot_lines.extend(traversed_statements)
