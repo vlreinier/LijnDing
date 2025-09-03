@@ -2,7 +2,7 @@
 A simple example demonstrating the basic usage of the LijnDing framework.
 This example shows the most direct way to compose a pipeline.
 """
-from lijnding import stage, Pipeline # Pipeline is only needed for type hinting here
+from lijnding.core import stage, Pipeline # Pipeline is only needed for type hinting here
 
 # 1. Define pipeline stages using the @stage decorator
 @stage

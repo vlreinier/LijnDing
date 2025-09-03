@@ -2,7 +2,7 @@
 An example demonstrating the use of the 'process' backend for CPU-bound tasks.
 """
 import time
-from lijnding import stage, Pipeline
+from lijnding.core import stage, Pipeline
 
 # With a robust serializer like `dill`, the 'process' backend can even
 # handle lambda functions, making it as easy to use as the 'thread' backend.

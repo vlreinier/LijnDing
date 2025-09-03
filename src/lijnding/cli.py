@@ -119,11 +119,11 @@ def run(
 
     if is_gui_enabled:
         try:
-            from lijnding_gui.persistence import PersistenceHooks
+            from lijnding_ui.persistence import PersistenceHooks, State
         except ImportError:
             raise click.ClickException(
-                "The 'lijnding_gui' package is not installed. "
-                "Please install it to use the --gui feature."
+                "The 'lijnding-ui' package is not installed. "
+                "Please install it with 'pip install lijnding-ui' to use the --gui feature."
             )
 
         hooks = PersistenceHooks()
@@ -151,7 +151,6 @@ def run(
         run_logger.propagate = False # Don't send events to the root logger
 
         # Now, we need to ensure the hooks use this run_id
-        from lijnding_gui.persistence import State
         hooks.state = State(run_id=run_id, log_dir=log_dir)
 
         for stage in pipeline.stages:

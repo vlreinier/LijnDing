@@ -8,8 +8,8 @@ pytest.importorskip("aiohttp", reason="aiohttp not installed, skipping http comp
 from aiohttp import web
 
 
-from lijnding import Pipeline
-from lijnding.components import http_request
+from lijnding.core import Pipeline
+from lijnding.components.http import http_request
 
 @pytest_asyncio.fixture
 async def test_server(aiohttp_server):

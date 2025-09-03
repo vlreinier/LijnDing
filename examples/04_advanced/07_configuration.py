@@ -2,7 +2,7 @@
 An advanced example demonstrating how to use the configuration system.
 """
 
-from lijnding import stage, Pipeline
+from lijnding.core import stage, Pipeline
 from lijnding.core.context import Context
 
 

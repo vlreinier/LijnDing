@@ -6,7 +6,8 @@ import logging
 import os
 import time
 
-from lijnding import stage, filter_, read_from_file, save_progress, write_to_file
+from lijnding.core import stage
+from lijnding.components import filter_, read_from_file, save_progress, write_to_file
 
 # --- Setup ---
 # You can configure the logger for LijnDing just like any other Python library.

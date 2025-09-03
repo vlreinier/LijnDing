@@ -3,7 +3,7 @@ An example demonstrating the use of the 'async' backend for non-blocking
 I/O-bound tasks using asyncio.
 """
 import asyncio
-from lijnding import stage
+from lijnding.core import stage
 
 # A list of dummy URLs to "download"
 URLS = [

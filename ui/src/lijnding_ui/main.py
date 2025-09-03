@@ -81,14 +81,17 @@ async def get_run_details(run_id: str) -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=f"Error reading log file: {e}")
 
 
-# --- Static File Serving (Placeholder) ---
+# --- Static File Serving ---
 # This will be used to serve the built Svelte application.
-# app.mount("/", StaticFiles(directory="path/to/svelte/dist", html=True), name="static")
-
-@app.get("/")
-async def root():
-    """
-    Root endpoint, useful for health checks.
-    Later, this will serve the Svelte app's index.html.
-    """
-    return {"message": "LijnDing FastAPI backend is running."}
+# We assume the svelte code is built and the assets are in the `static` directory.
+static_dir = Path(__file__).parent / "static"
+if static_dir.exists():
+    app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
+else:
+    @app.get("/")
+    async def root():
+        """
+        Root endpoint, useful for health checks.
+        This is a fallback for when the static files are not found.
+        """
+        return {"message": "LijnDing FastAPI backend is running. Static files not found."}

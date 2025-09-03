@@ -1,6 +1,6 @@
 import pytest
-from lijnding import Pipeline
-from lijnding.components import filter_
+from lijnding.core import Pipeline
+from lijnding.components.filter import filter_
 from tests.helpers.test_runner import run_pipeline, BACKENDS
 
 def is_even(n):

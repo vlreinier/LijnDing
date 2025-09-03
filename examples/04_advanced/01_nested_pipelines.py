@@ -1,7 +1,7 @@
 """
 An example demonstrating how pipelines can be nested and composed.
 """
-from lijnding import Pipeline, stage
+from lijnding.core import Pipeline, stage
 
 # --- Define a reusable sub-pipeline ---
 # This pipeline takes a string, cleans it, and splits it into words.

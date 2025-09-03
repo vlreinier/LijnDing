@@ -19,41 +19,28 @@ lijnding is a lightweight, type-aware, and composable pipeline framework for Pyt
 - **Extensible**: Add your own execution backends with the `register_backend` function.
 - **Error Handling**: Configure how your pipeline behaves on errors with policies like `fail`, `skip`, or `retry`.
 - **Nestable Pipelines**: Encapsulate and reuse complex workflows by using a pipeline as a stage within another pipeline.
-- **Web-Based GUI**: An optional web interface for real-time monitoring of pipeline runs.
+- **Modular and Extensible**: The framework is split into a core package and optional components that can be installed separately.
+- **Web-Based GUI**: An optional, standalone web interface for real-time monitoring of pipeline runs.
+
+## Architecture
+
+LijnDing is designed as a modular, multi-package framework. This allows users to install only the components they need. The main packages are:
+
+- **`lijnding-core`**: The essential pipeline framework.
+- **`lijnding-http`**: Provides HTTP components.
+- **`lijnding-rabbitmq`**: Provides RabbitMQ components.
+- **`lijnding-ui`**: A standalone web interface for monitoring.
 
 ## GUI and Monitoring
 
-The framework includes an optional web-based GUI for monitoring pipeline runs in real-time. This is an optional feature and `lijnding` remains fully functional in headless mode.
-
-### Quick Start
-
-1.  **Install with the `[gui]` extra**:
-    To include the web GUI and its dependencies, install the framework with the `[gui]` extra:
-    ```bash
-    pip install .[gui]
-    ```
-
-2.  **Start the GUI Server**:
-    Run the following command to start the web server:
-    ```bash
-    python -m uvicorn lijnding.gui.main:app --reload
-    ```
-    The GUI will be available at `http://localhost:8000`.
-
-3.  **Run a Pipeline with Monitoring**:
-    Use the `lijnding` CLI with the `--gui` flag. This will write event logs to the `.lijnding_runs/` directory, which the GUI reads.
-    ```bash
-    # Note: We use `python -m` to ensure correct module resolution
-    python -m lijnding.cli run examples.01_basics.01_simple_pipeline:pipeline --gui
-    ```
-    The new run will appear in the web interface.
+The web-based GUI is provided as a separate package, `lijnding-ui`. For installation and usage instructions, please see the [README in the `ui/` directory](./ui/README.md).
 
 ## Basic Usage
 
 Building a pipeline is as simple as defining stages and connecting them with `|`.
 
 ```python
-from lijnding import stage
+from lijnding.core import stage
 
 # 1. Define stages
 @stage
@@ -92,7 +79,8 @@ The `branch` component has two merge strategies:
 Here is an example that demonstrates both strategies:
 
 ```python
-from lijnding import stage, branch
+from lijnding.core import stage
+from lijnding.components import branch
 
 @stage
 def to_upper(text: str): return text.upper()
@@ -129,7 +117,8 @@ There are two main ways to use aggregators:
 Here is an example that uses both a built-in aggregator (`batch`) and a custom one (`process_batches`):
 
 ```python
-from lijnding import stage, aggregator_stage, batch, reduce
+from lijnding.core import stage, aggregator_stage
+from lijnding.components import batch, reduce
 
 @stage
 def generate_numbers():
@@ -169,7 +158,7 @@ processing:
 The `context` object provides access to a `config` object. You can use its `.get()` method to retrieve values. The `get()` method allows you to provide a default value for graceful fallback.
 
 ```python
-from lijnding import stage
+from lijnding.core import stage
 
 @stage
 def add_greeting(context, text: str) -> str:
@@ -206,29 +195,42 @@ results_no_config, _ = pipeline.collect(["world"])
 
 ## Installation
 
-To install the framework from source, clone the repository and run the following command in the project root:
-
+The core framework can be installed from the root of the repository:
 ```bash
-# For the core framework
 pip install .
+```
 
-# To include optional features, use extras:
-pip install .[http]          # For the HTTP component
-pip install .[gui]           # For the Web GUI
-pip install .[all]           # To install everything
+Optional components can be installed from their respective directories:
+```bash
+# Install HTTP components
+pip install ./components/http
+
+# Install RabbitMQ components
+pip install ./components/rabbitmq
+
+# Install the Web UI
+pip install ./ui
 ```
 
 ## Development
 
-To set up the project for development, it's recommended to create a virtual environment and install the package in editable mode with all test and development dependencies.
+To set up the project for development, it's recommended to create a virtual environment and install all packages in editable mode.
 
 ```bash
-# Create and activate a virtual environment (e.g., using venv)
+# Create and activate a virtual environment
 python -m venv .venv
 source .venv/bin/activate  # On Windows, use `.venv\Scripts\activate`
 
-# Install in editable mode with all extras for testing
-pip install -e .[all,test]
+# Install the core package in editable mode
+pip install -e .
+
+# Install all components and the UI in editable mode
+pip install -e ./components/http
+pip install -e ./components/rabbitmq
+pip install -e ./ui
+
+# Install test dependencies
+pip install -e .[test]
 ```
 
 ### Running Tests
@@ -247,7 +249,7 @@ Here is an example of a simple component that adds a prefix to a string:
 
 ```python
 from typing import Generator
-from lijnding import stage, Stage, Pipeline
+from lijnding.core import stage, Stage, Pipeline
 
 def add_prefix(prefix: str, **stage_kwargs) -> Stage:
     """

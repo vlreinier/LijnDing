@@ -1,8 +1,8 @@
 import pytest
 from unittest.mock import MagicMock, patch, call
 
-from lijnding import Pipeline, stage
-from lijnding.components import rabbitmq_source, rabbitmq_sink
+from lijnding.core import Pipeline, stage
+from lijnding.components.rabbitmq import rabbitmq_source, rabbitmq_sink
 from lijnding.core.errors import MissingDependencyError
 
 # Define fake data to be "consumed" from RabbitMQ

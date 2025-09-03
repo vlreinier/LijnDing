@@ -16,7 +16,7 @@ The example is split into two parts:
 import time
 import threading
 
-from lijnding import stage, Pipeline
+from lijnding.core import stage, Pipeline
 from lijnding.components import rabbitmq_source, rabbitmq_sink
 
 

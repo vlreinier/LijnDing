@@ -1,6 +1,6 @@
 import pytest
 import time
-from lijnding import Pipeline, stage
+from lijnding.core import Pipeline, stage
 
 class CountingIterator:
     """An iterator that counts how many items have been requested."""

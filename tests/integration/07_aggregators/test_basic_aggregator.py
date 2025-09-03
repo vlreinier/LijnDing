@@ -1,5 +1,5 @@
 import pytest
-from lijnding import Pipeline, aggregator_stage, stage, Hooks, Context
+from lijnding.core import Pipeline, aggregator_stage, stage, Hooks, Context
 from tests.helpers.test_runner import run_pipeline, BACKENDS
 
 

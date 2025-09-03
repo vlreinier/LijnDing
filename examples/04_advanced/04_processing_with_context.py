@@ -1,7 +1,7 @@
 """
 An example showing how to use a shared Context with the 'process' backend.
 """
-from lijnding import stage, Context, Pipeline
+from lijnding.core import stage, Context, Pipeline
 
 # This function must be defined at the top-level of a module for some
 # serializers to work correctly. `dill` can often handle nested functions,

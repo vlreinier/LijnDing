@@ -5,7 +5,7 @@ import time
 
 import pytest
 
-from lijnding import Pipeline, stage, Hooks
+from lijnding.core import Pipeline, stage, Hooks
 from lijnding.core.context import Context
 
 # --- Test Implementations ---

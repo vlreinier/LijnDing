@@ -1,5 +1,5 @@
 import pytest
-from lijnding import stage
+from lijnding.core import stage
 
 
 @pytest.mark.parametrize("backend", ["serial", "thread", "async"])

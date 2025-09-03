@@ -1,4 +1,5 @@
-from lijnding import Pipeline, stage, aggregator_stage, branch
+from lijnding.core import Pipeline, stage, aggregator_stage
+from lijnding.components import branch
 
 # --- Stages for composition tests ---
 @stage

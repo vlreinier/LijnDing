@@ -14,43 +14,18 @@ from typing import Iterable
 
 class Pipeline:
     """
-    Represents a sequence of stages that process data.
-
-    Pipelines are the main entry point for running data processing workflows.
-    They are created by composing `Stage` objects using the `|` operator.
-
-    Example:
-        >>> pipeline = read_from_file("data.txt") | process_text | write_to_db
-        >>> results, context = pipeline.collect()
+    A sequence of stages that process data.
     """
 
     def __init__(self, stages: Optional[List[Stage]] = None, *, name: Optional[str] = None):
-        """
-        Initializes a Pipeline.
-
-        Args:
-            stages (Optional[List[Stage]]): A list of stages to initialize
-                the pipeline with. Defaults to an empty list.
-            name (Optional[str]): A name for the pipeline, used for logging.
-                Defaults to "Pipeline".
-        """
         self.stages: List[Stage] = stages or []
         self.name = name or "Pipeline"
         self.logger = get_logger(f"lijnding.pipeline.{self.name}")
 
     def add(self, other: Any) -> "Pipeline":
         """
-        Adds a `Stage` or `Pipeline` to the end of this pipeline.
-
-        This method is used internally by the `|` operator but can be called
-        manually. It modifies the pipeline in-place and returns it to allow
-        for a fluent, chainable interface.
-
-        Args:
-            other: The `Stage` or `Pipeline` to add.
-
-        Returns:
-            The modified `Pipeline` instance.
+        Adds a component (Stage or Pipeline) to this pipeline.
+        This enables a fluent, chainable interface for building pipelines.
         """
         other_stage: Stage
         if isinstance(other, Stage):
@@ -70,16 +45,7 @@ class Pipeline:
 
     def __or__(self, other: Any) -> "Pipeline":
         """
-        Composes this pipeline with another `Stage` or `Pipeline` using the `|` operator.
-
-        This method creates a *new* `Pipeline` containing the stages of both
-        operands. It does not modify the original pipeline.
-
-        Args:
-            other: The `Stage` or `Pipeline` to compose with.
-
-        Returns:
-            A new `Pipeline` instance.
+        Composes this pipeline with another component (Stage or Pipeline).
         """
         other_stage: Stage
         if isinstance(other, Stage):
@@ -116,23 +82,6 @@ class Pipeline:
     def run(
         self, data: Optional[Iterable[Any]] = None, *, collect: bool = False, config_path: Optional[str] = None
     ) -> Tuple[Union[List[Any], Iterable[Any]], Context]:
-        """
-        Executes the pipeline.
-
-        This method runs the input data through all stages of the pipeline.
-
-        Args:
-            data (Optional[Iterable[Any]]): An iterable of data to process.
-                If the first stage is a 'source' stage, this can be omitted.
-            collect (bool): If `True`, returns the results as a list.
-                Otherwise, returns an iterator. Defaults to `False`.
-            config_path (Optional[str]): Path to a YAML configuration file
-                to be loaded into the context.
-
-        Returns:
-            A tuple containing the results (either a list or an iterator)
-            and the final `Context` object.
-        """
         self.logger.info("Pipeline run started.")
         start_time = time.time()
         config = load_config(config_path)
@@ -159,19 +108,6 @@ class Pipeline:
             self.logger.info(f"Pipeline run finished in {total_time:.4f} seconds.")
 
     def collect(self, data: Optional[Iterable[Any]] = None, config_path: Optional[str] = None) -> Tuple[List[Any], Context]:
-        """
-        Executes the pipeline and collects all results into a list.
-
-        This is a convenience method that is equivalent to calling `run()`
-        with `collect=True`.
-
-        Args:
-            data (Optional[Iterable[Any]]): An iterable of data to process.
-            config_path (Optional[str]): Path to a YAML configuration file.
-
-        Returns:
-            A tuple containing a list of results and the final `Context`.
-        """
         stream, context = self.run(data, collect=True, config_path=config_path)
         # The type hint says stream can be an iterable, but collect=True ensures it's a list
         return stream, context # type: ignore
@@ -233,18 +169,8 @@ class Pipeline:
 
     def to_stage(self) -> Stage:
         """
-        Converts the entire pipeline into a single, reusable `Stage`.
-
-        This is useful for nesting a complex pipeline within another one,
-        treating the entire inner pipeline as a single processing step. The
-        resulting stage is an 'itemwise' stage that will run each item through
-        the inner pipeline.
-
-        If the pipeline contains any `async` stages, this will produce an
-        `async` stage that must be used in an async-compatible pipeline.
-
-        Returns:
-            A new `Stage` that encapsulates the logic of this pipeline.
+        Converts the entire pipeline into a single, reusable Stage.
+        If the pipeline contains any async stages, this will produce an async Stage.
         """
         pipeline_name = self.name or "nested_pipeline"
 

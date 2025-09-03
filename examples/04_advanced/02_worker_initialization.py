@@ -5,7 +5,7 @@ a resource once per worker in concurrent backends.
 import time
 import os
 import threading
-from lijnding import Pipeline, stage, Hooks
+from lijnding.core import Pipeline, stage, Hooks
 from lijnding.core.context import Context
 
 def init_worker(context: Context) -> dict:

@@ -3,7 +3,7 @@
 # such as Pipeline, Stage, and Context.
 
 from .pipeline import Pipeline
-from .stage import stage, Stage
+from .stage import stage, Stage, aggregator_stage
 from .context import Context
 from .errors import ErrorPolicy
 from .hooks import Hooks
@@ -11,6 +11,7 @@ from .hooks import Hooks
 __all__ = [
     "Pipeline",
     "stage",
+    "aggregator_stage",
     "Stage",
     "Context",
     "ErrorPolicy",

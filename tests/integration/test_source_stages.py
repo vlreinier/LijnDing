@@ -1,5 +1,5 @@
 import pytest
-from lijnding import Pipeline, stage
+from lijnding.core import Pipeline, stage
 
 # --- Source Stage Tests ---
 

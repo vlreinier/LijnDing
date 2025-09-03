@@ -1,6 +1,6 @@
 import pytest
-from lijnding import Pipeline, stage
-from lijnding.components import read_from_file, write_to_file, save_progress
+from lijnding.core import Pipeline, stage
+from lijnding.components.io import read_from_file, write_to_file, save_progress
 
 def test_read_write_file(tmp_path):
     """

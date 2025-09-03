@@ -1,5 +1,5 @@
 import pytest
-from lijnding import Pipeline, stage, ErrorPolicy, aggregator_stage
+from lijnding.core import Pipeline, stage, ErrorPolicy, aggregator_stage
 from tests.helpers.test_runner import run_pipeline, BACKENDS
 
 @pytest.mark.parametrize("backend", ["serial", "thread"]) # Process/async have extra complexity

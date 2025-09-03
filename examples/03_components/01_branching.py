@@ -1,7 +1,8 @@
 """
 An example demonstrating the use of the Branch component for complex workflows.
 """
-from lijnding import stage, branch
+from lijnding.core import stage
+from lijnding.components import branch
 
 # --- Define some simple stages to be used in the branches ---
 @stage

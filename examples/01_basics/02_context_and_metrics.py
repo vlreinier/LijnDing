@@ -2,7 +2,7 @@
 An example demonstrating the use of the Context object and Hooks to share
 state and collect metrics across a pipeline.
 """
-from lijnding import stage, aggregator_stage, Context, Hooks
+from lijnding.core import stage, aggregator_stage, Context, Hooks
 
 # --- Hook Definition ---
 

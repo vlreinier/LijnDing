@@ -2,7 +2,7 @@
 An example demonstrating the use of ErrorPolicy for robust pipelines.
 """
 import time
-from lijnding import Pipeline, stage, ErrorPolicy
+from lijnding.core import Pipeline, stage, ErrorPolicy
 
 class CustomError(Exception):
     """A custom exception for demonstration purposes."""

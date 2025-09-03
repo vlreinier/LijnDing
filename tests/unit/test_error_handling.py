@@ -1,5 +1,5 @@
 import pytest
-from lijnding import Pipeline, stage, ErrorPolicy, Context
+from lijnding.core import Pipeline, stage, ErrorPolicy, Context
 
 # --- Test Stages with Errors ---
 

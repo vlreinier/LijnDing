@@ -5,7 +5,7 @@ from logging import LogRecord
 
 import structlog
 
-from lijnding import Pipeline, stage, Context
+from lijnding.core import Pipeline, stage, Context
 from tests.helpers.test_runner import run_pipeline, BACKENDS
 
 class MemoryHandler(logging.Handler):

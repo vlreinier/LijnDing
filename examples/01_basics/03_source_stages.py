@@ -1,7 +1,7 @@
 """
 An example demonstrating the use of source stages.
 """
-from lijnding import stage
+from lijnding.core import stage
 
 # --- Defining Source Stages ---
 

@@ -1,7 +1,8 @@
 """
 An example demonstrating the use of aggregator components like `batch` and `reduce`.
 """
-from lijnding import stage, aggregator_stage, batch, reduce
+from lijnding.core import stage, aggregator_stage
+from lijnding.components import batch, reduce
 
 # --- A simple pipeline demonstrating batching and reducing ---
 

@@ -2,7 +2,7 @@
 An example demonstrating the use of the 'thread' backend for concurrent I/O-bound tasks.
 """
 import time
-from lijnding import Pipeline, stage
+from lijnding.core import Pipeline, stage
 
 # A list of dummy URLs to "download"
 URLS = [

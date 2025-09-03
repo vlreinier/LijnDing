@@ -1,6 +1,6 @@
 import pytest
 
-from lijnding import stage
+from lijnding.core import stage
 from lijnding.components.branch import branch
 
 

@@ -1,5 +1,5 @@
 import time
-from lijnding import Pipeline, stage
+from lijnding.core import Pipeline, stage
 
 @stage(backend="thread", workers=2)
 def slow_io_stage(x: int) -> int:

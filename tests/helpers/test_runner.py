@@ -1,5 +1,5 @@
 from typing import Iterable, Any, Tuple, List
-from lijnding import Pipeline, Context
+from lijnding.core import Pipeline, Context
 
 # A list of all backends to be tested
 BACKENDS = ["serial", "thread", "process", "async"]

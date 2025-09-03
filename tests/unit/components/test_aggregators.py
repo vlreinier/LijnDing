@@ -1,4 +1,4 @@
-from lijnding import Pipeline
+from lijnding.core import Pipeline
 from lijnding.components.batch import batch
 from lijnding.components.reduce import reduce
 
