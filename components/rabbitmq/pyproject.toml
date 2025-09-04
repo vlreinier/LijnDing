@@ -20,6 +20,12 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 
+[project.optional-dependencies]
+test = [
+    "lijnding-core[test]",
+    "pika>=1.3.0",
+]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["lijnding*"]

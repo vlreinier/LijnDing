@@ -20,6 +20,12 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 
+[project.optional-dependencies]
+test = [
+    "lijnding-core[test]",
+    "pytest-aiohttp", # For testing the http component
+]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["lijnding*"]

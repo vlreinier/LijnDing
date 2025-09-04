@@ -32,11 +32,14 @@ classifiers = [
 test = [
     "pytest>=8.0",
     "pytest-asyncio",
-    "pytest-aiohttp", # For testing the http component
-    "pika>=1.3.0",
     "sphinx",
     "furo",
     "myst-parser",
+]
+test-all = [
+    "lijnding-core[test]",
+    "lijnding-http[test]",
+    "lijnding-rabbitmq[test]",
 ]
 
 [tool.pytest.ini_options]
