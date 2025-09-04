@@ -1,11 +1,11 @@
 import pytest
 
-from lijnding.core.pipeline import Pipeline
 from lijnding.core.stage import stage
 from lijnding.components.do_while import do_while
 
 
 # --- Synchronous Tests ---
+
 
 def test_simple_do_while_loop():
     """Tests a basic do-while loop that iterates a few times."""
@@ -37,6 +37,7 @@ def test_do_while_loop_runs_once():
 
 # --- Asynchronous Tests ---
 
+
 @pytest.mark.asyncio
 async def test_async_do_while_loop():
     """Tests a basic do-while loop in an async pipeline."""
@@ -51,6 +52,7 @@ async def test_async_do_while_loop():
     result = [item async for item in stream]
 
     assert result == [5]
+
 
 @pytest.mark.asyncio
 async def test_async_do_while_runs_once():

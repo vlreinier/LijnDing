@@ -1,21 +1,26 @@
 """
 An example demonstrating the use of the Branch component for complex workflows.
 """
+
 from lijnding.core import stage
 from lijnding.components.branch import branch
+
 
 # --- Define some simple stages to be used in the branches ---
 @stage
 def to_upper(text: str) -> str:
     return text.upper()
 
+
 @stage
 def get_length(text: str) -> int:
     return len(text)
 
+
 @stage
 def reverse_text(text: str) -> str:
     return text[::-1]
+
 
 def main():
     """Builds and runs pipelines with different branch merge strategies."""
@@ -42,7 +47,6 @@ def main():
     print(results_concat)
     # Expected: ['HELLO', 'olleh', 5, 'WORLD', 'dlrow', 5, 'LIJNDING', 'gnidnjil', 8]
     print("-" * 20)
-
 
     # --- Example 2: Zipped Branches ---
     # The `zip` merge strategy will group the results for each input item into a tuple.

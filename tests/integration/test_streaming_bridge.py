@@ -1,6 +1,5 @@
 import asyncio
 import time
-import pytest
 from lijnding.core import Pipeline, stage
 from ..helpers.test_runner import run_pipeline
 

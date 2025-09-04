@@ -1,4 +1,4 @@
-from lijnding.core import stage, Pipeline
+from lijnding.core import stage
 from lijnding.core.context import Context
 
 
@@ -7,6 +7,7 @@ def test_pipeline_uses_config_file(tmp_path):
     Tests that a pipeline can correctly load and use parameters from a
     config file provided to the `collect` method.
     """
+
     # 1. Define a stage that depends on a configuration value
     @stage
     def multiply_by(context: Context, item: int) -> int:
@@ -35,6 +36,7 @@ def test_pipeline_uses_defaults_without_config_file():
     Tests that the same pipeline falls back to default values when no
     config path is provided.
     """
+
     # 1. Define the same stage as the previous test
     @stage
     def multiply_by(context: Context, item: int) -> int:
@@ -55,6 +57,7 @@ def test_pipeline_uses_defaults_with_empty_config(tmp_path):
     Tests that the pipeline falls back to defaults if the config file
     is empty or doesn't contain the required key.
     """
+
     @stage
     def multiply_by(context: Context, item: int) -> int:
         multiplier = context.config.get("processing.multiplier", 5)

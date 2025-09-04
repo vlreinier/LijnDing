@@ -1,6 +1,7 @@
 """
 An example demonstrating the use of source stages.
 """
+
 from lijnding.core import stage
 
 # --- Defining Source Stages ---
@@ -9,11 +10,13 @@ from lijnding.core import stage
 # (besides an optional `context` object). It is used to start a pipeline
 # or to replace a data stream mid-pipeline.
 
+
 @stage
 def number_generator():
     """A simple source stage that yields numbers."""
     print("--- Source stage `number_generator` is running ---")
     yield from range(5)
+
 
 @stage
 def string_generator():
@@ -25,9 +28,11 @@ def string_generator():
 
 # --- Using Source Stages ---
 
+
 @stage
 def multiply_by_ten(x: int):
     return x * 10
+
 
 @stage
 def to_upper(text: str):

@@ -2,6 +2,7 @@
 This module provides the `while_loop` component, which allows for creating
 loops within a pipeline that execute as long as a condition is true.
 """
+
 from __future__ import annotations
 
 from typing import Any, Callable, Union, Iterable, AsyncIterator, List
@@ -41,6 +42,7 @@ def while_loop(condition: Callable[[Any], bool], body: Union[Stage, Pipeline]) -
     is_async_body = "async" in body_pipeline._get_required_backend_names()
 
     if is_async_body:
+
         @stage(name="While", stage_type="itemwise", backend="async")
         async def _while_func_async(context: Context, item: Any) -> AsyncIterator[Any]:
             current_item = item
@@ -62,6 +64,7 @@ def while_loop(condition: Callable[[Any], bool], body: Union[Stage, Pipeline]) -
 
         return _while_func_async
     else:
+
         @stage(name="While", stage_type="itemwise")
         def _while_func_sync(context: Context, item: Any) -> Iterable[Any]:
             current_item = item

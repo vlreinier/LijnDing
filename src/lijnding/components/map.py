@@ -2,6 +2,7 @@
 This module provides the `map_values` component, which is a fundamental
 building block for applying a 1-to-1 transformation to each item in a stream.
 """
+
 from __future__ import annotations
 
 from typing import Any, Callable

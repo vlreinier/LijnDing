@@ -1,10 +1,11 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Optional, Dict
 
 if TYPE_CHECKING:
     from .stage import Stage
     from .context import Context
+
 
 @dataclass
 class Hooks:
@@ -26,9 +27,12 @@ class Hooks:
                        exhausted, but before the main stage logic is called.
                        Ideal for accessing final context values.
     """
+
     before_stage: Optional[Callable[["Stage", "Context", Any], None]] = None
     after_stage: Optional[Callable[["Stage", "Context", Any, Any, float], None]] = None
-    on_error: Optional[Callable[["Stage", "Context", Any, BaseException, int], None]] = None
+    on_error: Optional[
+        Callable[["Stage", "Context", Any, BaseException, int], None]
+    ] = None
     on_worker_init: Optional[Callable[["Context"], Dict[str, Any]]] = None
     on_worker_exit: Optional[Callable[["Context"], None]] = None
     on_stream_end: Optional[Callable[["Context"], None]] = None

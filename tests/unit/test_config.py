@@ -6,6 +6,7 @@ from lijnding.config import Config, load_config
 
 # --- Tests for the Config class ---
 
+
 def test_config_get_top_level():
     """Tests retrieving a simple top-level value."""
     config = Config({"a": 1, "b": "hello"})
@@ -45,6 +46,7 @@ def test_config_get_from_empty_config():
 
 
 # --- Tests for the load_config function ---
+
 
 def test_load_config_with_none_path():
     """Tests that passing None as a path returns an empty Config object."""

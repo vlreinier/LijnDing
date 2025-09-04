@@ -2,6 +2,7 @@
 This module provides the `if_else` component, which allows for conditional
 routing of items to one of two different sub-pipelines.
 """
+
 from __future__ import annotations
 
 from typing import Any, Callable, Union, Iterable, AsyncIterator
@@ -32,20 +33,27 @@ def if_else(
         A Stage that encapsulates the conditional logic.
     """
     if_true_pipeline = Pipeline([if_true]) if isinstance(if_true, Stage) else if_true
-    if_false_pipeline = Pipeline([if_false]) if isinstance(if_false, Stage) else if_false
+    if_false_pipeline = (
+        Pipeline([if_false]) if isinstance(if_false, Stage) else if_false
+    )
 
-    if not isinstance(if_true_pipeline, Pipeline) or not isinstance(if_false_pipeline, Pipeline):
+    if not isinstance(if_true_pipeline, Pipeline) or not isinstance(
+        if_false_pipeline, Pipeline
+    ):
         raise TypeError("if_true and if_false must be Stage or Pipeline instances.")
 
     # If either of the branches is async, the entire component must be async.
     is_async = (
-        "async" in if_true_pipeline._get_required_backend_names() or
-        "async" in if_false_pipeline._get_required_backend_names()
+        "async" in if_true_pipeline._get_required_backend_names()
+        or "async" in if_false_pipeline._get_required_backend_names()
     )
 
     if is_async:
+
         @stage(name="IfElse", stage_type="itemwise", backend="async")
-        async def _if_else_func_async(context: Context, item: Any) -> AsyncIterator[Any]:
+        async def _if_else_func_async(
+            context: Context, item: Any
+        ) -> AsyncIterator[Any]:
             # Route the item to the appropriate pipeline based on the condition.
             if condition(item):
                 stream, _ = await if_true_pipeline.run_async(data=[item])
@@ -58,6 +66,7 @@ def if_else(
 
         return _if_else_func_async
     else:
+
         @stage(name="IfElse", stage_type="itemwise")
         def _if_else_func_sync(context: Context, item: Any) -> Iterable[Any]:
             # Route the item to the appropriate pipeline based on the condition.

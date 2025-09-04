@@ -3,8 +3,10 @@ from lijnding.core.pipeline import Pipeline
 from lijnding.components.filter import filter_
 from tests.helpers.test_runner import run_pipeline, BACKENDS
 
+
 def is_even(n):
     return n % 2 == 0
+
 
 @pytest.mark.parametrize("backend", BACKENDS)
 @pytest.mark.asyncio
@@ -23,6 +25,7 @@ async def test_filter_component(backend):
     # The processing backend might not preserve order, so we sort
     assert sorted(results) == expected
 
+
 def test_filter_empty_input():
     """
     Tests that the filter_ component handles empty input correctly.
@@ -30,6 +33,7 @@ def test_filter_empty_input():
     pipeline = Pipeline([filter_(is_even)])
     results, _ = pipeline.collect([])
     assert results == []
+
 
 def test_filter_no_matches():
     """

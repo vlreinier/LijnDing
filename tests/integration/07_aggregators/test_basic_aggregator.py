@@ -14,7 +14,9 @@ async def test_basic_aggregator(backend):
     assert results == [15]
 
 
-@pytest.mark.parametrize("backend", ["serial", "thread"]) # Process backend has issues with closures
+@pytest.mark.parametrize(
+    "backend", ["serial", "thread"]
+)  # Process backend has issues with closures
 @pytest.mark.asyncio
 async def test_aggregator_on_stream_end_hook(backend):
     """Tests that the on_stream_end hook is called correctly for aggregators."""

@@ -5,6 +5,7 @@ class TypeAdapters:
     """
     A registry for functions that can coerce a value from one type to another.
     """
+
     def __init__(self):
         self._adapters: Dict[Tuple[Any, Any], Callable[[Any], Any]] = {}
 

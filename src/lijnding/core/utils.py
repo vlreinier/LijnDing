@@ -1,6 +1,5 @@
 import asyncio
 import queue
-import threading
 import types
 from typing import Any, AsyncIterator, Iterable
 
@@ -18,7 +17,9 @@ class AsyncToSyncIterator:
     loop and passing items to the main thread through a thread-safe queue.
     """
 
-    def __init__(self, async_iterator: AsyncIterator[Any], loop: asyncio.AbstractEventLoop):
+    def __init__(
+        self, async_iterator: AsyncIterator[Any], loop: asyncio.AbstractEventLoop
+    ):
         self._async_iterator = async_iterator
         self._loop = loop
         self._queue: queue.Queue = queue.Queue(maxsize=1)

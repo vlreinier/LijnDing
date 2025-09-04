@@ -14,7 +14,15 @@ class Context:
     A dict-like context for sharing state and metrics across pipeline stages.
     """
 
-    def __init__(self, mp_safe: bool = False, initial_data: Optional[Dict[str, Any]] = None, config: Optional[Config] = None, *, pipeline_name: Optional[str] = None, _from_proxies=None):
+    def __init__(
+        self,
+        mp_safe: bool = False,
+        initial_data: Optional[Dict[str, Any]] = None,
+        config: Optional[Config] = None,
+        *,
+        pipeline_name: Optional[str] = None,
+        _from_proxies=None,
+    ):
         self.logger: logging.Logger = get_logger("lijnding.context")
         self.worker_state: Dict[str, Any] = {}
         self.config = config

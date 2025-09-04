@@ -4,13 +4,16 @@ import asyncio
 from lijnding.core import Pipeline, stage
 from lijnding.core.stage import Stage
 
+
 @stage
 def add_one_func(x):
     return x + 1
 
+
 @stage
 def multiply_by_two_func(x):
     return x * 2
+
 
 @pytest.mark.parametrize(
     "backend_outer, backend_inner",
@@ -61,6 +64,7 @@ def test_nested_mixed_backend_pipeline(backend_outer, backend_inner):
     input_data = list(range(10))
 
     if backend_outer == "async" or backend_inner == "async":
+
         async def run_test():
             output_data, _ = await outer_pipeline.run_async(input_data)
             return [i async for i in output_data]

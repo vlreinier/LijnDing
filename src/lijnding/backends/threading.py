@@ -24,11 +24,15 @@ class ThreadingRunner(BaseRunner):
     A runner that executes itemwise stages in a pool of threads.
     Aggregator stages are run serially.
     """
+
     def should_run_in_own_loop(self) -> bool:
         return True
 
-    def _run_itemwise(self, stage: "Stage", context: "Context", iterable: Iterable[Any]) -> Iterator[Any]:
+    def _run_itemwise(
+        self, stage: "Stage", context: "Context", iterable: Iterable[Any]
+    ) -> Iterator[Any]:
         import time
+
         stage.logger.info("stream_started", backend="threading", workers=stage.workers)
         stream_start_time = time.perf_counter()
 
@@ -50,6 +54,7 @@ class ThreadingRunner(BaseRunner):
 
         def worker(worker_id: int):
             import copy
+
             worker_context = copy.copy(context)
             worker_context.worker_state = {}
 
@@ -58,7 +63,9 @@ class ThreadingRunner(BaseRunner):
 
             try:
                 if stage.hooks.on_worker_init:
-                    worker_context.worker_state = stage.hooks.on_worker_init(worker_context) or {}
+                    worker_context.worker_state = (
+                        stage.hooks.on_worker_init(worker_context) or {}
+                    )
 
                 while True:
                     item = q_in.get()
@@ -69,7 +76,7 @@ class ThreadingRunner(BaseRunner):
                     stage.metrics["items_in"] += 1
                     attempts = 0
 
-                    while True: # Retry loop
+                    while True:  # Retry loop
                         try:
                             if stage.is_async:
                                 import asyncio
@@ -94,7 +101,9 @@ class ThreadingRunner(BaseRunner):
                                 loop = asyncio.new_event_loop()
                                 asyncio.set_event_loop(loop)
                                 try:
-                                    count_out = loop.run_until_complete(run_async_stage())
+                                    count_out = loop.run_until_complete(
+                                        run_async_stage()
+                                    )
                                 finally:
                                     loop.close()
                             else:
@@ -107,20 +116,31 @@ class ThreadingRunner(BaseRunner):
                                     q_out.put(res)
 
                             item_elapsed = time.perf_counter() - item_start_time
-                            logger.debug("item_processed", items_out=count_out, duration=round(item_elapsed, 4))
+                            logger.debug(
+                                "item_processed",
+                                items_out=count_out,
+                                duration=round(item_elapsed, 4),
+                            )
                             break  # Success, exit retry loop
 
                         except Exception as e:
                             attempts += 1
                             stage.metrics["errors"] += 1
-                            logger.warning("item_error", error=str(e), attempts=attempts)
+                            logger.warning(
+                                "item_error", error=str(e), attempts=attempts
+                            )
 
                             policy = stage.error_policy
                             if policy.mode == "route_to_pipeline":
                                 _handle_route_to_pipeline(stage, worker_context, item)
                                 break
-                            elif policy.mode == "route_to_pipeline_and_retry" and attempts <= policy.retries:
-                                item = _handle_transform_and_retry(stage, worker_context, item)
+                            elif (
+                                policy.mode == "route_to_pipeline_and_retry"
+                                and attempts <= policy.retries
+                            ):
+                                item = _handle_transform_and_retry(
+                                    stage, worker_context, item
+                                )
                                 if policy.backoff > 0:
                                     time.sleep(policy.backoff * attempts)
                                 continue
@@ -150,7 +170,10 @@ class ThreadingRunner(BaseRunner):
         feeder_thread = threading.Thread(target=feeder, daemon=True)
         feeder_thread.start()
 
-        threads = [threading.Thread(target=worker, args=(i,), daemon=True) for i in range(workers)]
+        threads = [
+            threading.Thread(target=worker, args=(i,), daemon=True)
+            for i in range(workers)
+        ]
         for t in threads:
             t.start()
 
@@ -183,6 +206,9 @@ class ThreadingRunner(BaseRunner):
                 duration=round(total_duration, 4),
             )
 
-    def _run_aggregator(self, stage: "Stage", context: "Context", iterable: Iterable[Any]) -> Iterator[Any]:
+    def _run_aggregator(
+        self, stage: "Stage", context: "Context", iterable: Iterable[Any]
+    ) -> Iterator[Any]:
         from .serial import SerialRunner
+
         return SerialRunner()._run_aggregator(stage, context, iterable)

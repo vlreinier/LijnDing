@@ -4,7 +4,8 @@ Configuration loading and management.
 This module provides tools for loading YAML configuration files and accessing
 their contents in a structured way.
 """
-from typing import Any, Dict
+
+from typing import Any, Dict, Optional
 import yaml
 import os
 
@@ -35,7 +36,7 @@ class Config:
         :param default: The value to return if the key is not found.
         :return: The configuration value or the default.
         """
-        keys = key.split('.')
+        keys = key.split(".")
         value = self._config
         for k in keys:
             if not isinstance(value, dict) or k not in value:
@@ -46,8 +47,6 @@ class Config:
     def __repr__(self) -> str:
         return f"Config(config_data={self._config})"
 
-
-from typing import Optional
 
 def load_config(path: Optional[str]) -> Config:
     """
@@ -61,7 +60,7 @@ def load_config(path: Optional[str]) -> Config:
     if not path or not os.path.exists(path):
         return Config({})
 
-    with open(path, 'r') as f:
+    with open(path, "r") as f:
         # Use safe_load to avoid arbitrary code execution
         config_data = yaml.safe_load(f)
 

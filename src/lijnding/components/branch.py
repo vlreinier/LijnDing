@@ -2,6 +2,7 @@
 This module provides the `branch` component, a powerful tool for creating
 non-linear, parallel workflows within a pipeline.
 """
+
 from __future__ import annotations
 
 from itertools import zip_longest
@@ -37,7 +38,9 @@ async def _async_zip(*iterators: AsyncIterator[Any]) -> AsyncIterator[tuple[Any,
             return
 
 
-async def _async_zip_longest(*iterators: AsyncIterator[Any], fillvalue: Any = None) -> AsyncIterator[tuple[Any, ...]]:
+async def _async_zip_longest(
+    *iterators: AsyncIterator[Any], fillvalue: Any = None
+) -> AsyncIterator[tuple[Any, ...]]:
     """A helper function that zips multiple async iterators together, padding with a fill value.
 
     This function is similar to `itertools.zip_longest`, but for async iterators.
@@ -99,24 +102,31 @@ def branch(*branches: Union[Stage, "Pipeline"], merge: str = "concat") -> Stage:
         elif isinstance(b, Pipeline):
             branch_pipelines.append(b)
         else:
-            raise TypeError(f"Branch arguments must be Stage or Pipeline, not {type(b)}")
+            raise TypeError(
+                f"Branch arguments must be Stage or Pipeline, not {type(b)}"
+            )
 
     if merge not in ["concat", "zip", "zip_longest"]:
         raise ValueError(f"Unknown merge strategy: '{merge}'")
 
     # Determine if any branch requires an async backend. If so, the entire
     # branch component must operate in async mode to handle the async iterators.
-    is_async_branch = any("async" in p._get_required_backend_names() for p in branch_pipelines)
+    is_async_branch = any(
+        "async" in p._get_required_backend_names() for p in branch_pipelines
+    )
 
     # --- Async Branch Implementation ---
     if is_async_branch:
+
         @stage(
             name=f"Branch(merge='{merge}')",
             stage_type="itemwise",
             backend="async",
             branch_pipelines=branch_pipelines,
         )
-        async def _branch_func_async(context: "Context", item: Any) -> AsyncIterator[Any]:
+        async def _branch_func_async(
+            context: "Context", item: Any
+        ) -> AsyncIterator[Any]:
             # For each branch, run the pipeline with the single item and get its
             # async iterator result.
             branch_iterators = [
@@ -138,6 +148,7 @@ def branch(*branches: Union[Stage, "Pipeline"], merge: str = "concat") -> Stage:
         return _branch_func_async
     # --- Sync Branch Implementation ---
     else:
+
         @stage(
             name=f"Branch(merge='{merge}')",
             stage_type="itemwise",

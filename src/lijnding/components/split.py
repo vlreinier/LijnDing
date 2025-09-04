@@ -2,6 +2,7 @@
 This module provides the `split` component, which is used to transform a
 single item into a stream of multiple items.
 """
+
 from __future__ import annotations
 
 from typing import Any, Callable, Iterable, Optional

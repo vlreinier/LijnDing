@@ -1,7 +1,9 @@
 """
 An example showing how to use a shared Context with the 'process' backend.
 """
+
 from lijnding.core import stage, Context, Pipeline
+
 
 # This function must be defined at the top-level of a module for some
 # serializers to work correctly. `dill` can often handle nested functions,
@@ -16,6 +18,7 @@ def process_and_count(context: Context, item: dict):
         context.inc("widget_counter")
     print(f"Processing item {item['id']}. Total processed so far: {total_processed}")
     return item["value"]
+
 
 def main():
     data = [
@@ -39,6 +42,7 @@ def main():
     print(final_context.to_dict())
     assert final_context.get("total_counter") == 4
     assert final_context.get("widget_counter") == 3
+
 
 if __name__ == "__main__":
     # The `if __name__ == "__main__":` guard is crucial for

@@ -1,8 +1,9 @@
 """
 An example demonstrating the use of the 'thread' backend for concurrent I/O-bound tasks.
 """
+
 import time
-from lijnding.core import Pipeline, stage
+from lijnding.core import stage
 
 # A list of dummy URLs to "download"
 URLS = [
@@ -13,6 +14,7 @@ URLS = [
     "http://example.com/page5",
     "http://example.com/page6",
 ]
+
 
 # Use the @stage decorator and specify the backend and number of workers.
 @stage(backend="thread", workers=4)
@@ -25,6 +27,7 @@ def download_url(url: str):
     time.sleep(1)
     print(f"Finished {url}.")
     return {"url": url, "content": f"Content of {url}"}
+
 
 def main():
     """Builds and runs the concurrent pipeline."""
@@ -43,7 +46,10 @@ def main():
 
     total_time = end_time - start_time
     print(f"\nTotal execution time: {total_time:.2f} seconds.")
-    print("Since we have 4 workers and 6 URLs, this should be much faster than 6 seconds.")
+    print(
+        "Since we have 4 workers and 6 URLs, this should be much faster than 6 seconds."
+    )
+
 
 if __name__ == "__main__":
     main()

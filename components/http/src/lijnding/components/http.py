@@ -1,5 +1,4 @@
-import asyncio
-from typing import Callable, Any, Coroutine, AsyncGenerator
+from typing import Callable, Any, AsyncGenerator
 
 from ..core.stage import stage, Stage
 
@@ -7,6 +6,7 @@ from ..core.stage import stage, Stage
 # is installed happens inside the component's factory function.
 try:
     import aiohttp
+
     _AIOHTTP_INSTALLED = True
 except ImportError:
     _AIOHTTP_INSTALLED = False

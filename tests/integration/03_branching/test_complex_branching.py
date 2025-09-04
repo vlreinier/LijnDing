@@ -24,21 +24,17 @@ def test_branch_with_nested_pipeline(backend):
 
     nested_pipeline = Pipeline([multiply_by_two_stage, add_one_stage])
 
-    pipeline = Pipeline([
-        branch(
-            add_one_stage,
-            nested_pipeline,
-            merge="concat"
-        )
-    ])
+    pipeline = Pipeline([branch(add_one_stage, nested_pipeline, merge="concat")])
 
     data = [1, 2, 3]
 
     if backend == "async":
         import asyncio
+
         async def run_test():
             output_data, _ = await pipeline.run_async(data)
             return [i async for i in output_data]
+
         results = asyncio.run(run_test())
     else:
         results, _ = pipeline.collect(data)

@@ -1,12 +1,15 @@
 """
 An example demonstrating the use of ErrorPolicy for robust pipelines.
 """
-import time
+
 from lijnding.core import Pipeline, stage, ErrorPolicy
+
 
 class CustomError(Exception):
     """A custom exception for demonstration purposes."""
+
     pass
+
 
 # --- A stage that can fail ---
 @stage
@@ -18,8 +21,11 @@ def might_fail(item: dict):
         raise CustomError(f"Failing on item: {item}")
     return item
 
+
 # --- A stage that can be retried ---
 RETRY_ATTEMPTS = 0
+
+
 @stage(error_policy=ErrorPolicy(mode="retry", retries=3, backoff=0.5))
 def needs_retry(item: dict):
     """
@@ -39,7 +45,7 @@ def needs_retry(item: dict):
 def main():
     data = [
         {"id": "a", "value": 1},
-        {"id": "b", "value": 0}, # This one will fail
+        {"id": "b", "value": 0},  # This one will fail
         {"id": "c", "value": 2},
     ]
 
@@ -51,7 +57,6 @@ def main():
     except CustomError as e:
         print(f"Pipeline failed as expected: {e}")
     print("-" * 20)
-
 
     # --- Example 2: 'skip' policy ---
     print("\n--- Running with 'skip' policy ---")
@@ -70,7 +75,7 @@ def main():
     print("\n--- Running with 'retry' policy ---")
     retry_data = [
         {"id": "first"},
-        {"id": "retry_me"}, # This will fail twice before succeeding
+        {"id": "retry_me"},  # This will fail twice before succeeding
         {"id": "third"},
     ]
     retry_pipeline = Pipeline() | needs_retry

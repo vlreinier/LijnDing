@@ -6,9 +6,11 @@ from tests.helpers.test_runner import run_pipeline
 # Backpressure is only relevant for concurrent backends.
 CONCURRENT_BACKENDS = ["thread", "process", "async"]
 
+
 def slow_consumer(x):
     time.sleep(0.02)
     return x
+
 
 @pytest.mark.parametrize("backend", CONCURRENT_BACKENDS)
 @pytest.mark.asyncio
@@ -24,9 +26,7 @@ async def test_backpressure(backend):
     # for the slow consumer, making the total runtime proportional to the
     # consumer's processing time. We use 2 workers to ensure that we are
     # testing the concurrent backends properly.
-    pipeline = Pipeline([
-        stage(slow_consumer, backend=backend, workers=2)
-    ])
+    pipeline = Pipeline([stage(slow_consumer, backend=backend, workers=2)])
 
     start_time = time.time()
     results, _ = await run_pipeline(pipeline, data)

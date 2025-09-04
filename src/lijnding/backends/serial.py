@@ -20,7 +20,9 @@ class SerialRunner(BaseRunner):
     A runner that executes stages sequentially in the main thread.
     """
 
-    def _run_itemwise(self, stage: "Stage", context: "Context", iterable: Iterable[Any]) -> Iterator[Any]:
+    def _run_itemwise(
+        self, stage: "Stage", context: "Context", iterable: Iterable[Any]
+    ) -> Iterator[Any]:
         """
         Processes items one by one in a simple loop, with structured logging.
         """
@@ -82,7 +84,10 @@ class SerialRunner(BaseRunner):
                         if policy.mode == "route_to_pipeline":
                             _handle_route_to_pipeline(stage, context, item)
                             break
-                        elif policy.mode == "route_to_pipeline_and_retry" and attempts <= policy.retries:
+                        elif (
+                            policy.mode == "route_to_pipeline_and_retry"
+                            and attempts <= policy.retries
+                        ):
                             item = _handle_transform_and_retry(stage, context, item)
                             if policy.backoff > 0:
                                 time.sleep(policy.backoff * attempts)

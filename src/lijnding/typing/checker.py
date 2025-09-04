@@ -1,5 +1,6 @@
 from typing import Any, Type, Union, get_origin, get_args, Iterable, Generator
 
+
 def are_types_compatible(output_type: Type[Any], input_type: Type[Any]) -> bool:
     """
     Checks if the output type of one stage is compatible with the input type of another.

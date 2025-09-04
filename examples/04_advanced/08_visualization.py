@@ -1,27 +1,34 @@
 """
 An example demonstrating the pipeline visualization feature.
 """
-from lijnding.core import stage, Pipeline
+
+from lijnding.core import stage
 from lijnding.components.branch import branch
 
 # --- Define some stages for a complex pipeline ---
+
 
 @stage
 def source():
     """A source stage that yields some initial data."""
     yield from ["hello", "world", "visualization"]
 
+
 @stage
 def to_upper(text: str):
     """Converts text to uppercase."""
     return text.upper()
 
+
 def add_punctuation(punc: str):
     """A factory for a stage that adds punctuation."""
+
     @stage(name=f"add_{punc.strip().replace('!', 'exclamation')}")
     def _add_punc(text: str):
         return f"{text}{punc}"
+
     return _add_punc
+
 
 @stage
 def get_length(text: str):
@@ -42,15 +49,10 @@ def main():
     main_pipeline = (
         source
         | to_upper
-        | branch(
-            get_length,
-            punctuate_pipeline,
-            merge="zip"
-        )
+        | branch(get_length, punctuate_pipeline, merge="zip")
         | stage(name="format_output")(lambda x: f"Result: {x}")
     )
     main_pipeline.name = "Main Processing Pipeline"
-
 
     # --- Generate and print the visualization ---
 

@@ -1,7 +1,9 @@
 """
 An example demonstrating how pipelines can be nested and composed.
 """
-from lijnding.core import Pipeline, stage
+
+from lijnding.core import stage
+
 
 # --- Define a reusable sub-pipeline ---
 # This pipeline takes a string, cleans it, and splits it into words.
@@ -9,17 +11,20 @@ from lijnding.core import Pipeline, stage
 def to_lower(text: str):
     return text.lower()
 
+
 @stage
 def remove_punctuation(text: str):
     return "".join(c for c in text if c.isalpha() or c.isspace())
+
 
 @stage
 def split_words(text: str):
     return text.split()
 
+
 # A reusable pipeline that encapsulates a common sequence of tasks.
 text_cleaning_pipeline = to_lower | remove_punctuation | split_words
-text_cleaning_pipeline.name = "TextCleaner" # Give it a name for clarity
+text_cleaning_pipeline.name = "TextCleaner"  # Give it a name for clarity
 
 
 # --- Define the main pipeline ---
@@ -28,6 +33,7 @@ def read_line(line: str):
     """A dummy stage that just yields the line."""
     print(f"Processing line: '{line.strip()}'")
     yield line
+
 
 @stage
 def count_items(items: list):

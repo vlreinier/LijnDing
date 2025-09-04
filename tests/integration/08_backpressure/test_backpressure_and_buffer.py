@@ -1,9 +1,11 @@
 import pytest
 import time
-from lijnding.core import Pipeline, stage
+from lijnding.core import stage
+
 
 class CountingIterator:
     """An iterator that counts how many items have been requested."""
+
     def __init__(self, n):
         self.n = n
         self.count = 0
@@ -19,6 +21,7 @@ class CountingIterator:
         # A small sleep to ensure the pipeline runner has time to switch threads
         time.sleep(0.01)
         return self.count - 1
+
 
 @pytest.mark.parametrize("backend", ["thread", "process"])
 def test_buffer_size_applies_backpressure(backend):

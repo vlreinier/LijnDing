@@ -9,11 +9,14 @@ from lijnding.components.for_each import for_each
 def double(x):
     return x * 2
 
+
 @stage
 def to_string(x):
     return str(x)
 
+
 # --- Synchronous Tests ---
+
 
 def test_for_each_simple_case():
     """Tests that for_each applies a pipeline to each element of a list."""
@@ -29,6 +32,7 @@ def test_for_each_simple_case():
     # of applying the pipeline to each element.
     assert result == [[2, 4, 6, 8]]
 
+
 def test_for_each_with_dict():
     """Tests that for_each can iterate over values in a dictionary."""
 
@@ -39,7 +43,8 @@ def test_for_each_with_dict():
 
     result, _ = pipeline.collect([data])
 
-    assert result == [['1', '2', '3']]
+    assert result == [["1", "2", "3"]]
+
 
 def test_for_each_with_pipeline_body():
     """Tests for_each with a multi-stage sub-pipeline."""
@@ -49,14 +54,16 @@ def test_for_each_with_pipeline_body():
 
     result, _ = pipeline.collect([[1, 2, 3]])
 
-    assert result == [['2', '4', '6']]
+    assert result == [["2", "4", "6"]]
 
 
 # --- Asynchronous Tests ---
 
+
 @stage(backend="async")
 async def double_async(x):
     return x * 2
+
 
 @pytest.mark.asyncio
 async def test_async_for_each():

@@ -1,6 +1,7 @@
 """
 Command Line Interface for the LijnDing framework.
 """
+
 import importlib
 import sys
 import logging
@@ -148,7 +149,7 @@ def run(
         run_logger = logging.getLogger(f"lijnding.run.{run_id}")
         run_logger.addHandler(file_handler)
         run_logger.setLevel(logging.INFO)
-        run_logger.propagate = False # Don't send events to the root logger
+        run_logger.propagate = False  # Don't send events to the root logger
 
         # Now, we need to ensure the hooks use this run_id
         hooks.state = State(run_id=run_id, log_dir=log_dir)

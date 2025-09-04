@@ -13,6 +13,7 @@ The example is split into two parts:
 2. A 'consumer' pipeline that reads from the queue, processes the messages,
    and sends the results to another queue.
 """
+
 import time
 import threading
 
@@ -25,27 +26,36 @@ from lijnding.components import rabbitmq_source, rabbitmq_sink
 # We use the 'pika' library directly for this.
 def produce_messages():
     import pika
+
     try:
-        connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+        connection = pika.BlockingConnection(pika.ConnectionParameters("localhost"))
         channel = connection.channel()
 
         # Declare a direct exchange and two queues
-        channel.exchange_declare(exchange='lijnding_exchange', exchange_type='direct', durable=True)
-        channel.queue_declare(queue='task_queue', durable=True)
-        channel.queue_declare(queue='result_queue', durable=True)
+        channel.exchange_declare(
+            exchange="lijnding_exchange", exchange_type="direct", durable=True
+        )
+        channel.queue_declare(queue="task_queue", durable=True)
+        channel.queue_declare(queue="result_queue", durable=True)
 
         # Bind the queues to the exchange
-        channel.queue_bind(exchange='lijnding_exchange', queue='task_queue', routing_key='task')
-        channel.queue_bind(exchange='lijnding_exchange', queue='result_queue', routing_key='result')
+        channel.queue_bind(
+            exchange="lijnding_exchange", queue="task_queue", routing_key="task"
+        )
+        channel.queue_bind(
+            exchange="lijnding_exchange", queue="result_queue", routing_key="result"
+        )
 
         print("Producer: Sending messages...")
         for i in range(5):
             message = f"hello world {i}"
             channel.basic_publish(
-                exchange='lijnding_exchange',
-                routing_key='task',
-                body=message.encode('utf-8'),
-                properties=pika.BasicProperties(delivery_mode=2) # make message persistent
+                exchange="lijnding_exchange",
+                routing_key="task",
+                body=message.encode("utf-8"),
+                properties=pika.BasicProperties(
+                    delivery_mode=2
+                ),  # make message persistent
             )
             print(f"Producer: Sent '{message}'")
             time.sleep(0.5)
@@ -58,16 +68,19 @@ def produce_messages():
     except pika.exceptions.AMQPConnectionError:
         print("\nCould not connect to RabbitMQ. Is it running?")
         print("You can start a test instance with Docker:")
-        print("docker run -d --hostname my-rabbit --name some-rabbit -p 5672:5672 -p 15672:15672 rabbitmq:3-management")
+        print(
+            "docker run -d --hostname my-rabbit --name some-rabbit -p 5672:5672 -p 15672:15672 rabbitmq:3-management"
+        )
 
 
 # --- Part 2: Consumer Pipeline ---
 # This is a lijnding pipeline that processes messages from RabbitMQ.
 
+
 # Define a simple processing stage
 @stage
 def to_upper(data: bytes) -> str:
-    return data.decode('utf-8').upper()
+    return data.decode("utf-8").upper()
 
 
 # Build the pipeline
@@ -76,10 +89,10 @@ def to_upper(data: bytes) -> str:
 # 3. Print the result to the console
 # 4. Send the result to 'result_queue'
 processing_pipeline = Pipeline(
-    rabbitmq_source(queue='task_queue'),
+    rabbitmq_source(queue="task_queue"),
     to_upper,
     stage(print),
-    rabbitmq_sink(exchange='lijnding_exchange', routing_key='result')
+    rabbitmq_sink(exchange="lijnding_exchange", routing_key="result"),
 )
 
 

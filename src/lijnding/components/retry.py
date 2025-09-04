@@ -2,6 +2,7 @@
 This module provides the `retry` component, which wraps a sub-pipeline
 and retries its execution on failure.
 """
+
 from __future__ import annotations
 import time
 import asyncio
@@ -38,6 +39,7 @@ def retry(
     is_async = "async" in sub_pipeline._get_required_backend_names()
 
     if is_async:
+
         @stage(name=f"Retry(retries={retries})", stage_type="itemwise", backend="async")
         async def _retry_func_async(context: Context, item: Any) -> AsyncIterator[Any]:
             last_exception = None
@@ -54,7 +56,7 @@ def retry(
                     if attempt < retries:
                         context.logger.warning(
                             f"Attempt {attempt + 1} failed. Retrying in {backoff}s...",
-                            exc_info=e
+                            exc_info=e,
                         )
                         await asyncio.sleep(backoff)
             # If all attempts fail, raise the last recorded exception.
@@ -63,6 +65,7 @@ def retry(
 
         return _retry_func_async
     else:
+
         @stage(name=f"Retry(retries={retries})", stage_type="itemwise")
         def _retry_func_sync(context: Context, item: Any) -> Iterable[Any]:
             last_exception = None
@@ -77,7 +80,7 @@ def retry(
                     if attempt < retries:
                         context.logger.warning(
                             f"Attempt {attempt + 1} failed. Retrying in {backoff}s...",
-                            exc_info=e
+                            exc_info=e,
                         )
                         time.sleep(backoff)
             # If all attempts fail, raise the last recorded exception.

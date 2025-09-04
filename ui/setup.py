@@ -6,6 +6,7 @@ from setuptools.command.build_py import build_py
 
 import shutil
 
+
 class BuildSvelte(build_py):
     """Custom build command to build the Svelte frontend."""
 

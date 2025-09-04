@@ -1,7 +1,6 @@
 import asyncio
 import time
-import pytest
-from lijnding.core import Pipeline, stage
+from lijnding.core import stage
 from ..helpers.test_runner import run_pipeline
 
 
@@ -33,6 +32,7 @@ def cpu_bound_stage(x: int) -> int:
         # This is a dummy calculation that is not easily optimized away
         x = x ^ i
     return x
+
 
 def test_mixed_backend_pipeline():
     """

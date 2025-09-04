@@ -1,5 +1,5 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional, Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -9,11 +9,13 @@ if TYPE_CHECKING:
 
 class LijndingError(Exception):
     """Base class for all exceptions raised by the lijnding framework."""
+
     pass
 
 
 class MissingDependencyError(LijndingError):
     """Raised when a component requires a dependency that is not installed."""
+
     pass
 
 
@@ -41,21 +43,33 @@ class ErrorPolicy:
             to which a failing item should be routed. Used by
             'route_to_pipeline' and 'route_to_pipeline_and_retry' modes.
     """
+
     mode: str = "fail"
     retries: int = 3
     backoff: float = 0.1
     route_to_pipeline: Optional[Union["Stage", "Pipeline"]] = None
 
     def __post_init__(self):
-        valid_modes = ["fail", "skip", "retry", "route_to_pipeline", "route_to_pipeline_and_retry"]
+        valid_modes = [
+            "fail",
+            "skip",
+            "retry",
+            "route_to_pipeline",
+            "route_to_pipeline_and_retry",
+        ]
         if self.mode not in valid_modes:
             raise ValueError(f"ErrorPolicy mode must be one of {valid_modes}")
 
         if self.mode in ["retry", "route_to_pipeline_and_retry"] and self.retries <= 0:
             raise ValueError("Retries must be a positive integer for retry modes")
 
-        if self.mode in ["route_to_pipeline", "route_to_pipeline_and_retry"] and self.route_to_pipeline is None:
-            raise ValueError("'route_to_pipeline' must be a Stage or Pipeline for routing modes")
+        if (
+            self.mode in ["route_to_pipeline", "route_to_pipeline_and_retry"]
+            and self.route_to_pipeline is None
+        ):
+            raise ValueError(
+                "'route_to_pipeline' must be a Stage or Pipeline for routing modes"
+            )
 
 
 class PipelineConnectionError(LijndingError):
@@ -74,4 +88,5 @@ class PipelineConnectionError(LijndingError):
 
 class MissingTypeHintError(LijndingError, TypeError):
     """Raised when a Stage is defined without necessary type hints."""
+
     pass

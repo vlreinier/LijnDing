@@ -1,16 +1,17 @@
 import logging
 import sys
-from typing import Optional
 
 # Attempt to import structlog
 try:
     import structlog
-    from structlog.types import EventDict, WrappedLogger
+
+    # from structlog.types import EventDict, WrappedLogger
     _has_structlog = True
 except ImportError:
     _has_structlog = False
 
 # --- Structlog Configuration ---
+
 
 def _configure_structlog():
     """Configures structlog to produce JSON-formatted logs via stdlib."""
@@ -35,8 +36,10 @@ def _configure_structlog():
         cache_logger_on_first_use=True,
     )
 
+
 class StructlogLogger:
     """A compatibility wrapper for the structlog logger."""
+
     def __init__(self, name: str):
         # get_logger with a name will be passed to the LoggerFactory
         self._logger = structlog.get_logger(name)
@@ -56,7 +59,9 @@ class StructlogLogger:
     def bind(self, **new_values):
         return self._logger.bind(**new_values)
 
+
 _structlog_configured = False
+
 
 def get_logger(name: str) -> logging.Logger | StructlogLogger:
     """

@@ -2,9 +2,11 @@
 An example demonstrating the use of the Context object and Hooks to share
 state and collect metrics across a pipeline.
 """
+
 from lijnding.core import stage, aggregator_stage, Context, Hooks
 
 # --- Hook Definition ---
+
 
 def print_metrics_on_end(context: Context):
     """
@@ -19,7 +21,9 @@ def print_metrics_on_end(context: Context):
     print(f"Total items processed: {total_items}")
     print(f"Items with errors: {error_items}")
 
+
 # --- Stage Definitions ---
+
 
 @stage
 def process_data(context: Context, data: dict):
@@ -40,9 +44,11 @@ def process_data(context: Context, data: dict):
     # Set a value in the context only if it's not already there.
     if context.get("start_time") is None:
         import time
+
         context.set("start_time", time.time())
 
     return data["value"]
+
 
 # The `on_stream_end` hook is attached to the aggregator stage. This means
 # `print_metrics_on_end` will be called after `process_data` has finished

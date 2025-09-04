@@ -2,6 +2,7 @@
 This module provides the `reduce_` component, which is used to apply a
 reduction function across all items in a stream to produce a single output.
 """
+
 from __future__ import annotations
 
 from typing import Any, Callable, Iterable, Optional, Generator
@@ -10,7 +11,9 @@ import functools
 from ..core.stage import Stage, aggregator_stage
 
 
-def reduce_(func: Callable[[Any, Any], Any], initializer: Optional[Any] = None) -> Stage:
+def reduce_(
+    func: Callable[[Any, Any], Any], initializer: Optional[Any] = None
+) -> Stage:
     """
     Creates a stage that reduces an entire input stream to a single value.
 

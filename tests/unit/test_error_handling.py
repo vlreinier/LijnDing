@@ -1,10 +1,12 @@
 import pytest
-from lijnding.core import Pipeline, stage, ErrorPolicy, Context
+from lijnding.core import Pipeline, stage, ErrorPolicy
 
 # --- Test Stages with Errors ---
 
+
 class MyException(Exception):
     pass
+
 
 @stage
 def failing_stage(x: int) -> int:
@@ -12,8 +14,11 @@ def failing_stage(x: int) -> int:
         raise MyException("I failed on 2!")
     return x
 
+
 # A stage to test retries
 retry_counter = 0
+
+
 @stage(error_policy=ErrorPolicy(mode="retry", retries=2))
 def retry_stage(x: int) -> int:
     global retry_counter
@@ -22,16 +27,21 @@ def retry_stage(x: int) -> int:
         raise MyException("Retry me")
     return x
 
+
 # --- Error Handling Tests ---
+
 
 def test_error_policy_fail():
     pipeline = Pipeline() | failing_stage
     with pytest.raises(MyException):
         pipeline.collect([1, 2, 3])
 
+
 def test_error_policy_skip():
     # Configure the stage to skip errors
-    skipping_failing_stage = stage(error_policy=ErrorPolicy(mode="skip"))(failing_stage.func)
+    skipping_failing_stage = stage(error_policy=ErrorPolicy(mode="skip"))(
+        failing_stage.func
+    )
 
     pipeline = Pipeline() | skipping_failing_stage
     results, _ = pipeline.collect([1, 2, 3, 4])
@@ -43,9 +53,10 @@ def test_error_policy_skip():
     error_stage = pipeline.stages[0]
     assert error_stage.metrics["errors"] == 1
 
+
 def test_error_policy_retry():
     global retry_counter
-    retry_counter = 0 # Reset counter
+    retry_counter = 0  # Reset counter
 
     pipeline = Pipeline() | retry_stage
 

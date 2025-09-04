@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import MagicMock, patch, call
 
-from lijnding.core import Pipeline, stage
+from lijnding.core import stage
 from lijnding.components.rabbitmq import rabbitmq_source, rabbitmq_sink
 from lijnding.core.errors import MissingDependencyError
 
@@ -48,7 +48,7 @@ def test_rabbitmq_source(mock_pika):
     finally:
         # Explicitly close the stream to ensure the generator's finally block
         # is executed, which closes the connection.
-        if hasattr(stream, 'close'):
+        if hasattr(stream, "close"):
             stream.close()
 
     # Assertions
@@ -56,7 +56,7 @@ def test_rabbitmq_source(mock_pika):
 
     # Verify that pika was used correctly
     mock_pika_lib.BlockingConnection.assert_called_once_with(
-        mock_pika_lib.ConnectionParameters(host='localhost')
+        mock_pika_lib.ConnectionParameters(host="localhost")
     )
     mock_connection.channel.assert_called_once()
     mock_channel.queue_declare.assert_called_once_with(queue="test_queue", durable=True)
@@ -64,9 +64,7 @@ def test_rabbitmq_source(mock_pika):
 
     # Check that messages were acknowledged
     assert mock_channel.basic_ack.call_count == 3
-    mock_channel.basic_ack.assert_has_calls([
-        call(1), call(2), call(3)
-    ])
+    mock_channel.basic_ack.assert_has_calls([call(1), call(2), call(3)])
 
     # Verify the connection was closed
     mock_connection.close.assert_called_once()
@@ -80,7 +78,9 @@ def test_rabbitmq_sink(mock_pika):
 
     # Define a pipeline that sends data to the sink
     # We need a source stage for the pipeline to be runnable
-    p = stage(lambda x: x) | rabbitmq_sink(exchange="test_exchange", routing_key="test_key")
+    p = stage(lambda x: x) | rabbitmq_sink(
+        exchange="test_exchange", routing_key="test_key"
+    )
     input_data = ["data 1", "data 2"]
 
     # Run the pipeline. We must consume the output stream to ensure
@@ -90,26 +90,28 @@ def test_rabbitmq_sink(mock_pika):
 
     # Assertions
     mock_pika_lib.BlockingConnection.assert_called_once_with(
-        mock_pika_lib.ConnectionParameters(host='localhost')
+        mock_pika_lib.ConnectionParameters(host="localhost")
     )
     mock_connection.channel.assert_called_once()
 
     # Verify that basic_publish was called for each item
     assert mock_channel.basic_publish.call_count == 2
-    mock_channel.basic_publish.assert_has_calls([
-        call(
-            exchange="test_exchange",
-            routing_key="test_key",
-            body=b"data 1",
-            properties=mock_pika_lib.BasicProperties(delivery_mode=2),
-        ),
-        call(
-            exchange="test_exchange",
-            routing_key="test_key",
-            body=b"data 2",
-            properties=mock_pika_lib.BasicProperties(delivery_mode=2),
-        ),
-    ])
+    mock_channel.basic_publish.assert_has_calls(
+        [
+            call(
+                exchange="test_exchange",
+                routing_key="test_key",
+                body=b"data 1",
+                properties=mock_pika_lib.BasicProperties(delivery_mode=2),
+            ),
+            call(
+                exchange="test_exchange",
+                routing_key="test_key",
+                body=b"data 2",
+                properties=mock_pika_lib.BasicProperties(delivery_mode=2),
+            ),
+        ]
+    )
 
     # Verify the connection was closed
     mock_connection.close.assert_called_once()
@@ -121,8 +123,12 @@ def test_missing_pika_dependency():
     """
     # Simulate pika not being installed by patching it to be None
     with patch("lijnding.components.rabbitmq.pika", None):
-        with pytest.raises(MissingDependencyError, match="pip install 'lijnding\\[rabbitmq\\]'"):
+        with pytest.raises(
+            MissingDependencyError, match="pip install 'lijnding\\[rabbitmq\\]'"
+        ):
             rabbitmq_source(queue="any")
 
-        with pytest.raises(MissingDependencyError, match="pip install 'lijnding\\[rabbitmq\\]'"):
+        with pytest.raises(
+            MissingDependencyError, match="pip install 'lijnding\\[rabbitmq\\]'"
+        ):
             rabbitmq_sink(exchange="any", routing_key="any")

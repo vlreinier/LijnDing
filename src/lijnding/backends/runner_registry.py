@@ -42,6 +42,7 @@ def register_backend(name: str, runner_class_path: str):
 
 class MissingBackendError(Exception):
     """Raised when a requested backend is not registered."""
+
     pass
 
 

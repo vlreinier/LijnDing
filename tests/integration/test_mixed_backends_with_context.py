@@ -1,6 +1,6 @@
 import pytest
 import itertools
-from lijnding.core import Pipeline, Context, stage
+from lijnding.core import Context, stage
 from tests.helpers.test_runner import run_pipeline, BACKENDS
 
 

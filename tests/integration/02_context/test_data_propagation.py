@@ -7,6 +7,7 @@ from tests.helpers.test_runner import run_pipeline, BACKENDS
 @pytest.mark.asyncio
 async def test_context_data_propagation(backend):
     """Tests that data can be passed between stages via the context."""
+
     def writer(context, item):
         context.set(f"key_{item}", item * 2)
         return item

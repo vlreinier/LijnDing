@@ -7,6 +7,7 @@ from lijnding.components.while_loop import while_loop
 
 # --- Synchronous Tests ---
 
+
 def test_simple_while_loop():
     """Tests a basic while loop that iterates a few times."""
 
@@ -73,6 +74,7 @@ def test_while_loop_raises_error_on_multiple_items():
 
 
 # --- Asynchronous Tests ---
+
 
 @pytest.mark.asyncio
 async def test_async_while_loop():

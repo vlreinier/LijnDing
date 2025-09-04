@@ -1,4 +1,3 @@
-import asyncio
 import json
 from pathlib import Path
 from typing import List, Dict, Any
@@ -6,7 +5,7 @@ from typing import List, Dict, Any
 import aiofiles
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-# from fastapi.staticfiles import StaticFiles # Will be used later
+from fastapi.staticfiles import StaticFiles
 
 # Placeholder for security features
 # from fastapi import Depends, Security
@@ -35,6 +34,7 @@ BASE_RUNS_DIR = Path(".lijnding_runs")
 
 
 # --- API Endpoints ---
+
 
 @app.get("/api/runs")
 async def get_all_runs() -> List[Dict[str, Any]]:
@@ -65,7 +65,9 @@ async def get_run_details(run_id: str) -> Dict[str, Any]:
     log_file = run_dir / "events.log"
 
     if not log_file.exists():
-        raise HTTPException(status_code=404, detail="Run not found or log file is missing.")
+        raise HTTPException(
+            status_code=404, detail="Run not found or log file is missing."
+        )
 
     events = []
     try:
@@ -88,10 +90,13 @@ static_dir = Path(__file__).parent / "static"
 if static_dir.exists():
     app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
 else:
+
     @app.get("/")
     async def root():
         """
         Root endpoint, useful for health checks.
         This is a fallback for when the static files are not found.
         """
-        return {"message": "LijnDing FastAPI backend is running. Static files not found."}
+        return {
+            "message": "LijnDing FastAPI backend is running. Static files not found."
+        }

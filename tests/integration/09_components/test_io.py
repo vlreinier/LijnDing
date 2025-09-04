@@ -1,6 +1,6 @@
-import pytest
-from lijnding.core import Pipeline, stage
+from lijnding.core import stage
 from lijnding.components.io import read_from_file, write_to_file, save_progress
+
 
 def test_read_write_file(tmp_path):
     """
@@ -17,15 +17,18 @@ def test_read_write_file(tmp_path):
     def to_upper(text: str):
         return text.upper()
 
-    pipeline = read_from_file(str(input_file)) | to_upper | write_to_file(str(output_file))
+    pipeline = (
+        read_from_file(str(input_file)) | to_upper | write_to_file(str(output_file))
+    )
 
     # Run the pipeline and collect the (empty) results to ensure it executes completely.
     results, _ = pipeline.collect([])
-    assert not results # write_to_file is a terminal stage
+    assert not results  # write_to_file is a terminal stage
 
     # Verify the output file content
     content = output_file.read_text().strip().split("\n")
     assert content == ["HELLO", "WORLD", "LIJNDING"]
+
 
 def test_save_progress(tmp_path):
     """
@@ -49,6 +52,7 @@ def test_save_progress(tmp_path):
     # Check that the checkpoint file was written correctly
     content = checkpoint_file.read_text().strip().split("\n")
     assert content == ["2", "4", "6", "8", "10"]
+
 
 def test_resume_from_checkpoint(tmp_path):
     """

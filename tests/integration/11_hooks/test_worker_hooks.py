@@ -10,8 +10,10 @@ from lijnding.core.context import Context
 
 # --- Test Implementations ---
 
+
 def make_hooks(queue: mp.Queue) -> Hooks:
     """Factory to create hooks that close over a queue for testing."""
+
     def init_func(context: Context):
         worker_id = f"{os.getpid()}_{threading.get_ident()}"
         queue.put(f"init_{worker_id}")
@@ -79,7 +81,9 @@ def test_threading_hook_with_unserializable_state():
         event_queue = manager.Queue()
         workers = 2
         state_manager = UnserializableState("test_worker", event_queue)
-        hooks = Hooks(on_worker_init=state_manager.init, on_worker_exit=state_manager.exit)
+        hooks = Hooks(
+            on_worker_init=state_manager.init, on_worker_exit=state_manager.exit
+        )
 
         @stage(backend="thread", workers=workers, hooks=hooks)
         def a_stage(item: int):
@@ -102,6 +106,7 @@ def test_threading_hook_with_unserializable_state():
         assert init_events == workers
         assert exit_events == workers
 
+
 def test_processing_hook_with_unserializable_state_fails():
     """
     Tests that the 'process' backend fails to serialize a stage
@@ -113,7 +118,7 @@ def test_processing_hook_with_unserializable_state_fails():
         dummy_queue = manager.Queue()
         workers = 2
         state_manager = UnserializableState("test_worker", dummy_queue)
-        hooks = Hooks(on_worker_init=state_manager.init) # Just init is enough to fail
+        hooks = Hooks(on_worker_init=state_manager.init)  # Just init is enough to fail
 
     @stage(backend="process", workers=workers, hooks=hooks)
     def a_stage(item: int):

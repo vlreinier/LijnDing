@@ -2,9 +2,11 @@
 An advanced example demonstrating how to use the 'route_to_stage' error
 policy to create a dead-letter queue for handling failed items.
 """
-from lijnding.core import stage, aggregator_stage, ErrorPolicy, Pipeline
+
+from lijnding.core import stage, aggregator_stage, ErrorPolicy
 
 # --- Dead-letter Stage Definition ---
+
 
 @aggregator_stage
 def dead_letter_handler(failed_items):
@@ -25,10 +27,8 @@ def dead_letter_handler(failed_items):
 
 # Create an ErrorPolicy that routes failures to our handler stage.
 # Note that the handler can be a Stage or a full Pipeline.
-dead_letter_policy = ErrorPolicy(
-    mode="route_to_stage",
-    route_to=dead_letter_handler
-)
+dead_letter_policy = ErrorPolicy(mode="route_to_stage", route_to=dead_letter_handler)
+
 
 # Apply this policy to a stage that is expected to fail.
 @stage(error_policy=dead_letter_policy)

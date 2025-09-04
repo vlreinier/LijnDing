@@ -31,7 +31,7 @@ class AsyncioRunner(BaseRunner):
             # Let the pipeline handle the 'source' case directly
             results = stage._invoke(context)
             output_stream = ensure_iterable(results)
-            if hasattr(output_stream, '__aiter__'):
+            if hasattr(output_stream, "__aiter__"):
                 async for res in output_stream:
                     yield res
             else:
@@ -87,7 +87,7 @@ class AsyncioRunner(BaseRunner):
                 item_start_time = asyncio.get_running_loop().time()
                 attempts = 0
 
-                while True: # Retry loop
+                while True:  # Retry loop
                     try:
                         count_out = 0
                         if stage.is_async:
@@ -96,34 +96,49 @@ class AsyncioRunner(BaseRunner):
                                 async for res in result_obj:
                                     yield res
                                     count_out += 1
-                            else: # Coroutine
+                            else:  # Coroutine
                                 results = await result_obj
                                 for res in ensure_iterable(results):
                                     yield res
                                     count_out += 1
                         else:  # Sync function
-                            results = await asyncio.to_thread(stage._invoke, context, item)
+                            results = await asyncio.to_thread(
+                                stage._invoke, context, item
+                            )
                             for res in ensure_iterable(results):
                                 yield res
                                 count_out += 1
 
                         stage.metrics["items_out"] += count_out
                         total_items_out += count_out
-                        item_elapsed = asyncio.get_running_loop().time() - item_start_time
-                        stage.logger.debug("item_processed", items_out=count_out, duration=round(item_elapsed, 4))
-                        break # Success
+                        item_elapsed = (
+                            asyncio.get_running_loop().time() - item_start_time
+                        )
+                        stage.logger.debug(
+                            "item_processed",
+                            items_out=count_out,
+                            duration=round(item_elapsed, 4),
+                        )
+                        break  # Success
 
                     except Exception as e:
                         attempts += 1
                         stage.metrics["errors"] += 1
-                        stage.logger.warning("item_error", error=str(e), attempts=attempts)
+                        stage.logger.warning(
+                            "item_error", error=str(e), attempts=attempts
+                        )
 
                         policy = stage.error_policy
                         if policy.mode == "route_to_pipeline":
                             await _handle_route_to_pipeline_async(stage, context, item)
                             break
-                        elif policy.mode == "route_to_pipeline_and_retry" and attempts <= policy.retries:
-                            item = await _handle_transform_and_retry_async(stage, context, item)
+                        elif (
+                            policy.mode == "route_to_pipeline_and_retry"
+                            and attempts <= policy.retries
+                        ):
+                            item = await _handle_transform_and_retry_async(
+                                stage, context, item
+                            )
                             if policy.backoff > 0:
                                 await asyncio.sleep(policy.backoff * attempts)
                             continue
@@ -146,7 +161,9 @@ class AsyncioRunner(BaseRunner):
                 duration=round(total_duration, 4),
             )
 
-    def run(self, stage: "Stage", context: "Context", iterable: Iterable[Any]) -> Iterator[Any]:
+    def run(
+        self, stage: "Stage", context: "Context", iterable: Iterable[Any]
+    ) -> Iterator[Any]:
         """
         Provides a synchronous entry point for the async runner by running
         a new event loop. This is useful for running an async-powered pipeline
@@ -157,6 +174,7 @@ class AsyncioRunner(BaseRunner):
             iterator is consumed. It also cannot be called from a running
             event loop. Use `run_async` for true async behavior.
         """
+
         # We need an async generator to pass to `asyncio.run`.
         async def _async_gen_wrapper():
             # Convert the sync iterable to an async one
@@ -190,7 +208,9 @@ class AsyncioRunner(BaseRunner):
         results = asyncio.run(_collect_async_gen(_async_gen_wrapper()))
         yield from results
 
-    def _run_itemwise(self, stage: "Stage", context: "Context", iterable: Iterable[Any]) -> Iterator[Any]:
+    def _run_itemwise(
+        self, stage: "Stage", context: "Context", iterable: Iterable[Any]
+    ) -> Iterator[Any]:
         """Implementation for the abstract method, uses the sync bridge."""
         yield from self.run(stage, context, iterable)
 

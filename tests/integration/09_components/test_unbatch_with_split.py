@@ -1,7 +1,7 @@
-import pytest
 from lijnding.core.pipeline import Pipeline
 from lijnding.components.batch import batch
 from lijnding.components.split import split
+
 
 def test_split_as_unbatch():
     """
@@ -10,10 +10,12 @@ def test_split_as_unbatch():
     """
     # The pipeline first batches items into lists of 3, then uses split
     # to flatten the stream of lists back into a stream of items.
-    pipeline = Pipeline([
-        batch(size=3),
-        split() # With no arguments, split will iterate over the incoming item.
-    ])
+    pipeline = Pipeline(
+        [
+            batch(size=3),
+            split(),  # With no arguments, split will iterate over the incoming item.
+        ]
+    )
 
     input_data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 

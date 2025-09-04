@@ -8,15 +8,19 @@ from lijnding.components.if_else import if_else
 def is_even(n):
     return n % 2 == 0
 
+
 @stage
 def double(x):
     return x * 2
+
 
 @stage
 def increment(x):
     return x + 1
 
+
 # --- Synchronous Tests ---
+
 
 def test_if_else_true_branch():
     """Tests that the 'if_true' branch is taken when the condition is true."""
@@ -27,6 +31,7 @@ def test_if_else_true_branch():
     result, _ = pipeline.collect([4])
     assert result == [8]
 
+
 def test_if_else_false_branch():
     """Tests that the 'if_false' branch is taken when the condition is false."""
     pipeline = if_else(is_even, if_true=double, if_false=increment)
@@ -35,11 +40,10 @@ def test_if_else_false_branch():
     result, _ = pipeline.collect([5])
     assert result == [6]
 
+
 def test_if_else_with_multiple_items():
     """Tests the if_else component with a stream of multiple items."""
-    pipeline = Pipeline([
-        if_else(is_even, if_true=double, if_false=increment)
-    ])
+    pipeline = Pipeline([if_else(is_even, if_true=double, if_false=increment)])
 
     data = [1, 2, 3, 4, 5]
     # Expected: [ (1+1), (2*2), (3+1), (4*2), (5+1) ] = [2, 4, 4, 8, 6]
@@ -51,13 +55,16 @@ def test_if_else_with_multiple_items():
 
 # --- Asynchronous Tests ---
 
+
 @stage(backend="async")
 async def double_async(x):
     return x * 2
 
+
 @stage(backend="async")
 async def increment_async(x):
     return x + 1
+
 
 @pytest.mark.asyncio
 async def test_async_if_else_true_branch():
@@ -67,6 +74,7 @@ async def test_async_if_else_true_branch():
     stream, _ = await pipeline.run_async([4])
     result = [item async for item in stream]
     assert result == [8]
+
 
 @pytest.mark.asyncio
 async def test_async_if_else_false_branch():

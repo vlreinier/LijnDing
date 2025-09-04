@@ -20,7 +20,9 @@ class BaseRunner(ABC):
     (e.g., serial, threaded, or multiprocessing).
     """
 
-    def run(self, stage: "Stage", context: "Context", iterable: Iterable[Any]) -> Iterator[Any]:
+    def run(
+        self, stage: "Stage", context: "Context", iterable: Iterable[Any]
+    ) -> Iterator[Any]:
         """
         Executes the stage. This is the main entry point for a runner.
         It delegates to the appropriate method based on the stage type.
@@ -35,7 +37,9 @@ class BaseRunner(ABC):
         return self._run_itemwise(stage, context, iterable)
 
     @abstractmethod
-    def _run_itemwise(self, stage: "Stage", context: "Context", iterable: Iterable[Any]) -> Iterator[Any]:
+    def _run_itemwise(
+        self, stage: "Stage", context: "Context", iterable: Iterable[Any]
+    ) -> Iterator[Any]:
         """
         Processes an iterable item by item.
         Each runner must implement this method.
@@ -51,7 +55,9 @@ class BaseRunner(ABC):
         """
         return False
 
-    def _run_aggregator(self, stage: "Stage", context: "Context", iterable: Iterable[Any]) -> Iterator[Any]:
+    def _run_aggregator(
+        self, stage: "Stage", context: "Context", iterable: Iterable[Any]
+    ) -> Iterator[Any]:
         """
         Processes an entire iterable at once with structured logging.
         This implementation fully consumes the input stream, logs metrics,
@@ -109,7 +115,6 @@ class BaseRunner(ABC):
 def _handle_route_to_pipeline(stage: "Stage", context: "Context", item: Any):
     """Helper function to route a failed item to a separate pipeline."""
     # Local imports to avoid circular dependencies
-    from .runner_registry import get_runner
     from ..core.pipeline import Pipeline
     from ..core.stage import Stage
 
@@ -150,7 +155,9 @@ def _handle_transform_and_retry(stage: "Stage", context: "Context", item: Any) -
     return results[0]
 
 
-async def _handle_route_to_pipeline_async(stage: "Stage", context: "Context", item: Any):
+async def _handle_route_to_pipeline_async(
+    stage: "Stage", context: "Context", item: Any
+):
     """Async helper to route a failed item to a separate pipeline."""
     from ..core.pipeline import Pipeline
     from ..core.stage import Stage
@@ -168,7 +175,9 @@ async def _handle_route_to_pipeline_async(stage: "Stage", context: "Context", it
         pass
 
 
-async def _handle_transform_and_retry_async(stage: "Stage", context: "Context", item: Any) -> Any:
+async def _handle_transform_and_retry_async(
+    stage: "Stage", context: "Context", item: Any
+) -> Any:
     """
     Async helper to route a failed item to a transformer pipeline and
     return the transformed item.

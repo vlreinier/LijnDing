@@ -21,7 +21,7 @@ def _check_pika():
 
 def rabbitmq_source(
     *,
-    host: str = 'localhost',
+    host: str = "localhost",
     queue: str,
     name: Optional[str] = None,
     **stage_kwargs,
@@ -66,7 +66,7 @@ def rabbitmq_source(
 
 def rabbitmq_sink(
     *,
-    host: str = 'localhost',
+    host: str = "localhost",
     exchange: str,
     routing_key: str,
     name: Optional[str] = None,
@@ -99,7 +99,9 @@ def rabbitmq_sink(
 
         try:
             for item in items:
-                body = str(item).encode('utf-8') if not isinstance(item, bytes) else item
+                body = (
+                    str(item).encode("utf-8") if not isinstance(item, bytes) else item
+                )
                 channel.basic_publish(
                     exchange=exchange,
                     routing_key=routing_key,

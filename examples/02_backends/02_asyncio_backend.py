@@ -2,6 +2,7 @@
 An example demonstrating the use of the 'async' backend for non-blocking
 I/O-bound tasks using asyncio.
 """
+
 import asyncio
 from lijnding.core import stage
 
@@ -12,6 +13,7 @@ URLS = [
     "http://example.com/page3",
 ]
 
+
 # Use the @stage decorator and specify the backend.
 # The stage function must be an `async def` function.
 @stage(backend="async")
@@ -21,9 +23,10 @@ async def download_url_async(url: str):
     It uses `asyncio.sleep` to represent non-blocking network latency.
     """
     print(f"Starting download for {url}...")
-    await asyncio.sleep(1) # This is non-blocking
+    await asyncio.sleep(1)  # This is non-blocking
     print(f"Finished {url}.")
     return {"url": url, "content": f"Content of {url}"}
+
 
 async def main():
     """Builds and runs the async pipeline."""
@@ -41,6 +44,7 @@ async def main():
 
     print("\n--- Results ---")
     print(f"Downloaded {len(results)} pages.")
+
 
 if __name__ == "__main__":
     # To run the `main` async function, you use `asyncio.run()`

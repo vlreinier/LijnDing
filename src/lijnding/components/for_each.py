@@ -2,9 +2,10 @@
 This module provides the `for_each` component, which is used to apply a
 sub-pipeline to each element of a nested iterable within an item.
 """
+
 from __future__ import annotations
 
-from typing import Any, Callable, Union, Iterable, AsyncIterator, List, Mapping
+from typing import Any, Callable, Union, Iterable, AsyncIterator, List
 
 from ..core.pipeline import Pipeline
 from ..core.stage import Stage, stage
@@ -42,8 +43,11 @@ def for_each(
     is_async = "async" in sub_pipeline._get_required_backend_names()
 
     if is_async:
+
         @stage(name="ForEach", stage_type="itemwise", backend="async")
-        async def _for_each_func_async(context: Context, item: Any) -> AsyncIterator[Any]:
+        async def _for_each_func_async(
+            context: Context, item: Any
+        ) -> AsyncIterator[Any]:
             # Use the selector to extract the iterable of elements from the input item.
             elements = selector(item)
             all_results = []
@@ -57,6 +61,7 @@ def for_each(
 
         return _for_each_func_async
     else:
+
         @stage(name="ForEach", stage_type="itemwise")
         def _for_each_func_sync(context: Context, item: Any) -> Iterable[Any]:
             # Use the selector to extract the iterable of elements from the input item.

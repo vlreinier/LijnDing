@@ -1,8 +1,11 @@
 import pytest
 from lijnding.core import Pipeline, stage, ErrorPolicy, aggregator_stage
-from tests.helpers.test_runner import run_pipeline, BACKENDS
+from tests.helpers.test_runner import run_pipeline
 
-@pytest.mark.parametrize("backend", ["serial", "thread"]) # Process/async have extra complexity
+
+@pytest.mark.parametrize(
+    "backend", ["serial", "thread"]
+)  # Process/async have extra complexity
 @pytest.mark.asyncio
 async def test_route_to_stage_policy(backend):
     """
@@ -16,8 +19,7 @@ async def test_route_to_stage_policy(backend):
         dead_letter_items.extend(list(items))
 
     error_policy = ErrorPolicy(
-        mode="route_to_pipeline",
-        route_to_pipeline=dead_letter_handler
+        mode="route_to_pipeline", route_to_pipeline=dead_letter_handler
     )
 
     @stage(backend=backend, error_policy=error_policy)

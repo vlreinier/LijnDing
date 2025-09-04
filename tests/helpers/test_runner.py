@@ -6,7 +6,9 @@ import inspect
 BACKENDS = ["serial", "thread", "process", "async"]
 
 
-async def run_pipeline(pipeline: Pipeline, data: Iterable[Any]) -> Tuple[List[Any], Context]:
+async def run_pipeline(
+    pipeline: Pipeline, data: Iterable[Any]
+) -> Tuple[List[Any], Context]:
     """
     Runs a pipeline and collects its results, automatically handling sync and async backends.
     """

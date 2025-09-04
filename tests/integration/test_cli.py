@@ -3,7 +3,6 @@ import sys
 import os
 from pathlib import Path
 
-import pytest
 
 # Get the path to the current Python executable
 PYTHON_EXECUTABLE = sys.executable

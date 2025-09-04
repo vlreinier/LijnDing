@@ -2,7 +2,9 @@ import pytest
 import pytest_asyncio
 
 # Conditionally skip these tests if aiohttp is not installed.
-pytest.importorskip("aiohttp", reason="aiohttp not installed, skipping http component tests")
+pytest.importorskip(
+    "aiohttp", reason="aiohttp not installed, skipping http component tests"
+)
 
 # If the import above succeeds, we can safely import the sub-modules.
 from aiohttp import web
@@ -11,16 +13,19 @@ from aiohttp import web
 from lijnding.core import Pipeline
 from lijnding.components.http import http_request
 
+
 @pytest_asyncio.fixture
 async def test_server(aiohttp_server):
     """A pytest fixture to create a simple test server."""
+
     async def handler(request):
-        name = request.match_info.get('name', 'anonymous')
+        name = request.match_info.get("name", "anonymous")
         return web.Response(text=f"Hello, {name}")
 
     app = web.Application()
-    app.router.add_get('/greet/{name}', handler)
+    app.router.add_get("/greet/{name}", handler)
     return await aiohttp_server(app)
+
 
 @pytest.mark.asyncio
 async def test_http_request_component(test_server):
@@ -31,9 +36,9 @@ async def test_http_request_component(test_server):
     data = ["jules", "ada", "grace"]
 
     # A pipeline that takes a name, builds a URL, and makes a request
-    pipeline = Pipeline([http_request(
-        url_builder=lambda name: f"{server_url}/greet/{name}"
-    )])
+    pipeline = Pipeline(
+        [http_request(url_builder=lambda name: f"{server_url}/greet/{name}")]
+    )
 
     # We need to use run_async and collect the results
     stream, _ = await pipeline.run_async(data)
@@ -41,6 +46,7 @@ async def test_http_request_component(test_server):
 
     expected = ["Hello, jules", "Hello, ada", "Hello, grace"]
     assert results == expected
+
 
 @pytest.mark.asyncio
 async def test_http_request_error_handling(test_server):
@@ -52,8 +58,9 @@ async def test_http_request_error_handling(test_server):
     pipeline = Pipeline([http_request(lambda _: f"{server_url}/not_found")])
 
     from aiohttp import ClientResponseError
+
     with pytest.raises(ClientResponseError) as excinfo:
         stream, _ = await pipeline.run_async(["item1"])
-        _ = [item async for item in stream] # Consume the stream to trigger the error
+        _ = [item async for item in stream]  # Consume the stream to trigger the error
 
     assert excinfo.value.status == 404

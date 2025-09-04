@@ -21,7 +21,7 @@ class State:
 
     def _setup_logger(self):
         """Configures a dedicated logger for the pipeline run."""
-        log_file = self.log_dir / "events.log"
+        # log_file = self.log_dir / "events.log"
         # This is a simplified logger setup.
         # In a real implementation, we would use structlog's file-based logging.
         # For now, we'll just get a standard logger.
@@ -76,7 +76,12 @@ class PersistenceHooks(Hooks):
         )
 
     def after_stage(
-        self, stage: "Stage", context: "Context", item: Any, result: Any, time_taken: float
+        self,
+        stage: "Stage",
+        context: "Context",
+        item: Any,
+        result: Any,
+        time_taken: float,
     ):
         """Called after a stage successfully processes an item."""
         if not self.state:
@@ -93,7 +98,12 @@ class PersistenceHooks(Hooks):
         )
 
     def on_error(
-        self, stage: "Stage", context: "Context", item: Any, error: BaseException, retries_left: int
+        self,
+        stage: "Stage",
+        context: "Context",
+        item: Any,
+        error: BaseException,
+        retries_left: int,
     ):
         """Called when a stage encounters an error."""
         if not self.state:

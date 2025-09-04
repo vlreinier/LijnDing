@@ -2,6 +2,7 @@
 This module provides the `filter_` component, which is used to selectively
 keep or discard items from a pipeline stream based on a condition.
 """
+
 from __future__ import annotations
 from typing import Any, Callable, TYPE_CHECKING, Generator
 from ..core.stage import Stage, stage
@@ -10,7 +11,9 @@ if TYPE_CHECKING:
     from ..core.context import Context
 
 
-def filter_(condition: Callable[..., bool], *, name: str = "filter", **stage_kwargs) -> Stage:
+def filter_(
+    condition: Callable[..., bool], *, name: str = "filter", **stage_kwargs
+) -> Stage:
     """
     Creates a stage that filters items from a stream based on a condition.
 

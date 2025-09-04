@@ -5,10 +5,10 @@ A `Stage` is the fundamental building block of a `Pipeline`. It wraps a Python
 function and adds metadata and configuration for how that function should be
 executed within the pipeline.
 """
+
 from __future__ import annotations
 
 import inspect
-from functools import wraps
 from typing import (
     Any,
     Callable,
@@ -20,7 +20,11 @@ from typing import (
     Tuple,
     AsyncIterator,
     AsyncIterable,
+    TYPE_CHECKING,
 )
+
+if TYPE_CHECKING:
+    from .pipeline import Pipeline
 
 from ..typing.inference import infer_types
 from .context import Context
@@ -47,6 +51,7 @@ class Stage:
         error_policy: The policy for handling errors that occur in the stage.
         is_async: A boolean indicating if the stage's function is async.
     """
+
     def __init__(
         self,
         func: Callable[..., Any],
@@ -79,7 +84,6 @@ class Stage:
             branch_pipelines: Used internally by the `branch` component.
             wrapped_pipeline: Used internally when a `Pipeline` is nested.
         """
-        from .pipeline import Pipeline
 
         self.func = func
         self.name = name or getattr(func, "__name__", "Stage")
@@ -90,7 +94,9 @@ class Stage:
         self.buffer_size = buffer_size
         self.error_policy = error_policy or ErrorPolicy()
         self.hooks = hooks or Hooks()
-        self.is_async = inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func)
+        self.is_async = inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(
+            func
+        )
         self.branch_pipelines = branch_pipelines
         self.wrapped_pipeline = wrapped_pipeline
 
@@ -103,7 +109,10 @@ class Stage:
             self.stage_type = "source"
 
         self.metrics: dict[str, Any] = {
-            "items_in": 0, "items_out": 0, "errors": 0, "time_total": 0.0,
+            "items_in": 0,
+            "items_out": 0,
+            "errors": 0,
+            "time_total": 0.0,
         }
 
     def __repr__(self) -> str:
@@ -112,11 +121,13 @@ class Stage:
     def __or__(self, other: Union["Stage", "Pipeline"]) -> "Pipeline":
         """Composes this stage with another using the `|` operator."""
         from .pipeline import Pipeline
+
         return Pipeline([self]) | other
 
     def __rshift__(self, other: Union["Stage", "Pipeline"]) -> "Pipeline":
         """Provides an alternative `>>` operator for composition."""
         from .pipeline import Pipeline
+
         return Pipeline([self]) | other
 
     def visualize(self) -> str:
@@ -129,11 +140,16 @@ class Stage:
             A string containing the stage's structure in DOT format.
         """
         from .pipeline import Pipeline
+
         pipeline = Pipeline([self], name=self.name)
         return pipeline.visualize()
 
     def run(
-        self, data: Optional[Iterable[Any]] = None, *, collect: bool = False, config_path: Optional[str] = None
+        self,
+        data: Optional[Iterable[Any]] = None,
+        *,
+        collect: bool = False,
+        config_path: Optional[str] = None,
     ) -> Tuple[Union[List[Any], Iterable[Any]], Context]:
         """Executes the stage as a single-stage pipeline.
 
@@ -149,10 +165,13 @@ class Stage:
             A tuple containing the results and the execution context.
         """
         from .pipeline import Pipeline
+
         pipeline = Pipeline([self])
         return pipeline.run(data, collect=collect, config_path=config_path)
 
-    def collect(self, data: Optional[Iterable[Any]] = None, config_path: Optional[str] = None) -> Tuple[List[Any], Context]:
+    def collect(
+        self, data: Optional[Iterable[Any]] = None, config_path: Optional[str] = None
+    ) -> Tuple[List[Any], Context]:
         """Executes the stage and collects all results into a list.
 
         Args:
@@ -163,11 +182,14 @@ class Stage:
             A tuple containing the list of results and the execution context.
         """
         from .pipeline import Pipeline
+
         pipeline = Pipeline([self])
         return pipeline.collect(data, config_path=config_path)
 
     async def run_async(
-        self, data: Optional[Union[Iterable[Any], AsyncIterable[Any]]] = None, config_path: Optional[str] = None
+        self,
+        data: Optional[Union[Iterable[Any], AsyncIterable[Any]]] = None,
+        config_path: Optional[str] = None,
     ) -> Tuple[AsyncIterator[Any], Context]:
         """Asynchronously executes the stage as a single-stage pipeline.
 
@@ -179,6 +201,7 @@ class Stage:
             A tuple containing an async iterator for the results and the context.
         """
         from .pipeline import Pipeline
+
         pipeline = Pipeline([self])
         return await pipeline.run_async(data, config_path=config_path)
 
@@ -270,6 +293,7 @@ def stage(
         A `Stage` object if used as `@stage`, or a decorator that returns a
         `Stage` object if used as `@stage(...)`.
     """
+
     def wrapper(func: Callable[..., Any]) -> Stage:
         return Stage(
             typechecked(func),

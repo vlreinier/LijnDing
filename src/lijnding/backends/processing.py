@@ -16,6 +16,7 @@ SENTINEL = "__LIJNDING_SENTINEL__"
 METRICS_SENTINEL = "__METRICS__"
 ERROR_SENTINEL = "__ERROR__"
 
+
 def _worker_process(
     q_in: mp.Queue,
     q_out: mp.Queue,
@@ -34,7 +35,9 @@ def _worker_process(
         worker_context = Context(_from_proxies=context_proxies)
 
         if stage.hooks.on_worker_init:
-            worker_context.worker_state = stage.hooks.on_worker_init(worker_context) or {}
+            worker_context.worker_state = (
+                stage.hooks.on_worker_init(worker_context) or {}
+            )
 
         logger.info("worker_started")
 
@@ -52,18 +55,28 @@ def _worker_process(
                     count_out += 1
 
                 item_elapsed = time.perf_counter() - item_start_time
-                metrics = {"items_in": 1, "items_out": count_out, "errors": 0, "time_total": item_elapsed}
+                metrics = {
+                    "items_in": 1,
+                    "items_out": count_out,
+                    "errors": 0,
+                    "time_total": item_elapsed,
+                }
                 q_out.put((METRICS_SENTINEL, metrics))
 
             except Exception as e:
                 item_elapsed = time.perf_counter() - item_start_time
-                metrics = {"items_in": 1, "items_out": 0, "errors": 1, "time_total": item_elapsed}
+                metrics = {
+                    "items_in": 1,
+                    "items_out": 0,
+                    "errors": 1,
+                    "time_total": item_elapsed,
+                }
                 q_out.put((METRICS_SENTINEL, metrics))
                 q_out.put((ERROR_SENTINEL, (item, e)))
 
     except Exception as e:
         logger.error("worker_critical_error", error=str(e))
-        q_out.put((ERROR_SENTINEL, (None, e))) # Signal critical failure
+        q_out.put((ERROR_SENTINEL, (None, e)))  # Signal critical failure
     finally:
         if stage and worker_context and stage.hooks.on_worker_exit:
             stage.hooks.on_worker_exit(worker_context)
@@ -74,32 +87,40 @@ def _worker_process(
 class ProcessingRunner(BaseRunner):
     """A runner that executes itemwise stages in a persistent pool of processes."""
 
-    def _run_itemwise(self, stage: "Stage", context: "Context", iterable: Iterable[Any]) -> Iterator[Any]:
+    def _run_itemwise(
+        self, stage: "Stage", context: "Context", iterable: Iterable[Any]
+    ) -> Iterator[Any]:
         stage.logger.info("stream_started", backend="processing", workers=stage.workers)
         stream_start_time = time.perf_counter()
 
         try:
-            mp.set_start_method('spawn', force=True)
+            mp.set_start_method("spawn", force=True)
         except RuntimeError:
             pass
 
         q_in: mp.Queue = mp.Queue(maxsize=stage.buffer_size or (stage.workers * 2))
         q_out: mp.Queue = mp.Queue()
 
-        context_proxies = (context._data, context._lock) if getattr(context, "_mp_safe", False) else None
+        context_proxies = (
+            (context._data, context._lock)
+            if getattr(context, "_mp_safe", False)
+            else None
+        )
         stage_payload = serializer.dumps(stage)
 
         processes = [
             mp.Process(
                 target=_worker_process,
                 args=(q_in, q_out, stage_payload, context_proxies, i),
-                daemon=True
-            ) for i in range(stage.workers)
+                daemon=True,
+            )
+            for i in range(stage.workers)
         ]
         for p in processes:
             p.start()
 
         total_items_fed = 0
+
         def feeder():
             nonlocal total_items_fed
             try:
@@ -131,7 +152,7 @@ class ProcessingRunner(BaseRunner):
                     if result[0] == ERROR_SENTINEL:
                         item, e = result[1]
                         stage.logger.warning(f"Error from worker: {e}")
-                        if item is None: # Critical worker error
+                        if item is None:  # Critical worker error
                             raise e
 
                         policy = stage.error_policy
@@ -151,12 +172,15 @@ class ProcessingRunner(BaseRunner):
             total_duration = time.perf_counter() - stream_start_time
             stage.logger.info(
                 "stream_finished",
-                items_in=stage.metrics['items_in'],
-                items_out=stage.metrics['items_out'],
-                errors=stage.metrics['errors'],
+                items_in=stage.metrics["items_in"],
+                items_out=stage.metrics["items_out"],
+                errors=stage.metrics["errors"],
                 duration=round(total_duration, 4),
             )
 
-    def _run_aggregator(self, stage: "Stage", context: "Context", iterable: Iterable[Any]) -> Iterator[Any]:
+    def _run_aggregator(
+        self, stage: "Stage", context: "Context", iterable: Iterable[Any]
+    ) -> Iterator[Any]:
         from .serial import SerialRunner
+
         return SerialRunner()._run_aggregator(stage, context, iterable)
