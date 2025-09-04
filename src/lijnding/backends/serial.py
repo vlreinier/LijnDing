@@ -66,6 +66,7 @@ class SerialRunner(BaseRunner):
                         break  # Success, exit retry loop
 
                     except Exception as e:
+                        context.on_stage_error(stage, e)
                         attempts += 1
                         stage.metrics["errors"] += 1
                         item_elapsed = time.perf_counter() - item_start_time

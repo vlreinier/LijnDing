@@ -24,9 +24,10 @@ class AsyncioRunner(BaseRunner):
     # This runner has a different signature for its entry point to support `async`.
     # The Pipeline will need to be aware of this.
     async def run_async(
-        self, stage: "Stage", context: "Context", iterable: AsyncIterator[Any]
+        self, stage: "Stage", context: "Context", iterable: AsyncIterator[Any], index: int
     ) -> AsyncIterator[Any]:
         """Asynchronously executes the stage with structured logging."""
+        context.on_stage_start(stage, index)
         if stage.stage_type == "source":
             # Let the pipeline handle the 'source' case directly
             results = stage._invoke(context)
@@ -122,6 +123,7 @@ class AsyncioRunner(BaseRunner):
                         break  # Success
 
                     except Exception as e:
+                        context.on_stage_error(stage, e)
                         attempts += 1
                         stage.metrics["errors"] += 1
                         stage.logger.warning(
@@ -162,7 +164,7 @@ class AsyncioRunner(BaseRunner):
             )
 
     def run(
-        self, stage: "Stage", context: "Context", iterable: Iterable[Any]
+        self, stage: "Stage", context: "Context", iterable: Iterable[Any], index: int
     ) -> Iterator[Any]:
         """
         Provides a synchronous entry point for the async runner by running
@@ -174,7 +176,6 @@ class AsyncioRunner(BaseRunner):
             iterator is consumed. It also cannot be called from a running
             event loop. Use `run_async` for true async behavior.
         """
-
         # We need an async generator to pass to `asyncio.run`.
         async def _async_gen_wrapper():
             # Convert the sync iterable to an async one
@@ -182,7 +183,7 @@ class AsyncioRunner(BaseRunner):
                 for i in it:
                     yield i
 
-            async for res in self.run_async(stage, context, _to_async(iterable)):
+            async for res in self.run_async(stage, context, _to_async(iterable), index):
                 yield res
 
         # This is a bridge from the async world to the sync world.

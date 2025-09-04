@@ -28,6 +28,12 @@ from .log import get_logger
 from .utils import AsyncToSyncIterator
 from ..config import Config, load_config
 
+try:
+    from ..orchestration.context import OrchestrationContext
+    ORCHESTRATION_ENABLED = True
+except ImportError:
+    ORCHESTRATION_ENABLED = False
+
 
 class Pipeline:
     """A sequence of stages that process data.
@@ -125,9 +131,20 @@ class Pipeline:
     def _get_required_backend_names(self) -> set[str]:
         return set(getattr(s, "backend", "serial") for s in self.stages)
 
-    def _build_context(self, config: Optional[Config] = None) -> Context:
+    def _build_context(self, config: Optional[Config], context: Optional[Context]) -> Context:
+        if context:
+            return context
+
         needs_mp = "process" in self._get_required_backend_names()
-        return Context(mp_safe=needs_mp, config=config, pipeline_name=self.name)
+
+        context_class = Context
+        if ORCHESTRATION_ENABLED:
+            self.logger.debug("Orchestration dependencies found, using OrchestrationContext.")
+            context_class = OrchestrationContext
+        else:
+            self.logger.debug("Orchestration dependencies not found, using standard Context.")
+
+        return context_class(mp_safe=needs_mp, config=config, pipeline_name=self.name)
 
     def run(
         self,
@@ -135,29 +152,12 @@ class Pipeline:
         *,
         collect: bool = False,
         config_path: Optional[str] = None,
+        context: Optional[Context] = None,
     ) -> Tuple[Union[List[Any], Iterable[Any]], Context]:
-        """Runs the pipeline synchronously.
-
-        This method executes the pipeline stages in order, passing the output of
-        one stage as the input to the next.
-
-        Args:
-            data: An iterable of input data to be fed into the pipeline. If the
-                first stage is a 'source' stage, this can be `None`.
-            collect: If `True`, the output of the pipeline will be collected into
-                a list and returned. If `False` (default), a generator will be
-                returned, allowing for streaming processing.
-            config_path: The path to a YAML configuration file to be loaded into
-                the pipeline's context.
-
-        Returns:
-            A tuple containing the pipeline's output (either a list or an
-            iterable) and the final `Context` object.
-        """
         self.logger.info("Pipeline run started.")
         start_time = time.time()
         config = load_config(config_path)
-        context = self._build_context(config)
+        context = self._build_context(config, context)
 
         if data is None:
             if not self.stages or self.stages[0].stage_type != "source":
@@ -167,11 +167,13 @@ class Pipeline:
             data = []
 
         stream: Iterable[Any] = data
+        exception: Optional[Exception] = None
 
+        context.on_run_start(self)
         try:
-            for stage_obj in self.stages:
+            for index, stage_obj in enumerate(self.stages):
                 runner = get_runner(getattr(stage_obj, "backend", "serial"))
-                stream = runner.run(stage_obj, context, stream)
+                stream = runner.run(stage_obj, context, stream, index)
 
             if collect:
                 if hasattr(stream, "__aiter__"):
@@ -189,49 +191,37 @@ class Pipeline:
                 else:
                     return list(stream), context
             return stream, context
+        except Exception as e:
+            exception = e
+            self.logger.error("Pipeline failed", exception=str(e), exc_info=True)
+            raise
         finally:
+            context.on_run_finish(self, exception)
             end_time = time.time()
             total_time = end_time - start_time
             self.logger.info(f"Pipeline run finished in {total_time:.4f} seconds.")
 
     def collect(
-        self, data: Optional[Iterable[Any]] = None, config_path: Optional[str] = None
+        self,
+        data: Optional[Iterable[Any]] = None,
+        config_path: Optional[str] = None,
+        context: Optional[Context] = None,
     ) -> Tuple[List[Any], Context]:
-        """A convenience method that runs the pipeline and collects all results into a list.
-
-        Args:
-            data: An iterable of input data.
-            config_path: The path to a YAML configuration file.
-
-        Returns:
-            A tuple containing a list of the pipeline's output and the final
-            `Context` object.
-        """
-        stream, context = self.run(data, collect=True, config_path=config_path)
+        stream, context = self.run(
+            data, collect=True, config_path=config_path, context=context
+        )
         return stream, context  # type: ignore
 
     async def run_async(
         self,
         data: Optional[Union[Iterable[Any], AsyncIterable[Any]]] = None,
         config_path: Optional[str] = None,
+        context: Optional[Context] = None,
     ) -> Tuple[AsyncIterator[Any], Context]:
-        """Asynchronously executes the pipeline.
-
-        This method is required for pipelines that use the 'async' backend or
-        process `AsyncIterable` data.
-
-        Args:
-            data: An iterable or async iterable of input data.
-            config_path: The path to a YAML configuration file.
-
-        Returns:
-            A tuple containing an async iterator for the pipeline's output and
-            the final `Context` object.
-        """
         self.logger.info("Async pipeline run started.")
         start_time = time.time()
         config = load_config(config_path)
-        context = self._build_context(config)
+        context = self._build_context(config, context)
 
         if data is None:
             if not self.stages or self.stages[0].stage_type != "source":
@@ -250,11 +240,13 @@ class Pipeline:
         else:
             stream = data  # type: ignore
 
+        exception: Optional[Exception] = None
+        context.on_run_start(self)
         try:
-            for stage_obj in self.stages:
+            for index, stage_obj in enumerate(self.stages):
                 runner = get_runner(getattr(stage_obj, "backend", "serial"))
                 if hasattr(runner, "run_async"):
-                    stream = runner.run_async(stage_obj, context, stream)
+                    stream = runner.run_async(stage_obj, context, stream, index)
                 else:
                     loop = asyncio.get_running_loop()
                     sync_iterable = AsyncToSyncIterator(stream, loop)
@@ -265,19 +257,24 @@ class Pipeline:
                             asyncio.set_event_loop(new_loop)
                             try:
                                 return list(
-                                    runner.run(stage_obj, context, sync_iterable)
+                                    runner.run(stage_obj, context, sync_iterable, index)
                                 )
                             finally:
                                 new_loop.close()
                         else:
-                            return list(runner.run(stage_obj, context, sync_iterable))
+                            return list(runner.run(stage_obj, context, sync_iterable, index))
 
                     sync_results = await loop.run_in_executor(
                         None, run_sync_stage_in_thread
                     )
                     stream = _to_async(sync_results)
             return stream, context
+        except Exception as e:
+            exception = e
+            self.logger.error("Async pipeline failed", exception=str(e), exc_info=True)
+            raise
         finally:
+            context.on_run_finish(self, exception)
             end_time = time.time()
             total_time = end_time - start_time
             self.logger.info(

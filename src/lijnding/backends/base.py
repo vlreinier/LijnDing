@@ -21,12 +21,14 @@ class BaseRunner(ABC):
     """
 
     def run(
-        self, stage: "Stage", context: "Context", iterable: Iterable[Any]
+        self, stage: "Stage", context: "Context", iterable: Iterable[Any], index: int
     ) -> Iterator[Any]:
         """
         Executes the stage. This is the main entry point for a runner.
         It delegates to the appropriate method based on the stage type.
         """
+        context.on_stage_start(stage, index)
+
         if stage.stage_type == "source":
             # Source stages ignore the input iterable and generate their own data.
             return ensure_iterable(stage._invoke(context))
